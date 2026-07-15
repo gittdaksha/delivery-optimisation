@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/raw/*.csv
+data/processed/*.csv
+data/*.sqlite
+models/*.pkl
+.DS_Store
+airflow_home/
+*.egg-info/
