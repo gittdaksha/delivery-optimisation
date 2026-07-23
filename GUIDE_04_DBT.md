@@ -693,7 +693,13 @@ git push -u origin feature/guide-04-dbt
    - **base:** `develop` ← where the code will go
    - **compare:** `feature/guide-04-dbt` ← what you are merging in
 3. Title: `Guide 04: dbt transformation models`
-4. Description: 1-2 lines about what this guide added
+4. Description — paste this exactly:
+   ```
+   - Added dbt project with staging model (stg_deliveries_cleaned) to clean and type-cast raw deliveries
+   - Added two mart models: FADR by city/address type and FADR by delivery window/alerts
+   - Added source definition and data quality tests (unique, not_null, accepted_values)
+   - Added dbt docs generation and serve for auto-generated pipeline documentation
+   ```
 5. Click **Create pull request**
 6. Click **Merge pull request** → **Confirm merge**
 
