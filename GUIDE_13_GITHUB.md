@@ -1,4 +1,4 @@
-# Guide 08 — Push to GitHub & Write Your CV Entry
+# Guide 13 — Push to GitHub & Write Your CV Entry
 
 **Goal:** Publish the project to GitHub so it can be shared, and write a strong CV entry that communicates real impact.
 

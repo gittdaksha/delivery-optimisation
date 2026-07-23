@@ -1,4 +1,4 @@
-# Guide 06 — Predict Delivery Success with ML (Machine Learning)
+# Guide 09 — Predict Delivery Success with ML (Machine Learning)
 
 **Goal:** Train a machine learning model that predicts whether a delivery attempt will succeed, given address type, time window, order value, and customer preferences. This is the "data science" layer on top of your data engineering pipeline.
 

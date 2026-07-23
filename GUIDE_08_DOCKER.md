@@ -1,4 +1,4 @@
-# Guide 11 — Containerise Everything with Docker
+# Guide 08 — Containerise Everything with Docker
 
 **Goal:** Package the entire pipeline — Kafka, the Python scripts, and Airflow — into Docker containers using Docker Compose. This is how real data pipelines are deployed in production.
 

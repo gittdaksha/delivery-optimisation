@@ -1,4 +1,4 @@
-# Guide 07 — Interactive Dashboard with Streamlit
+# Guide 10 — Interactive Dashboard with Streamlit
 
 **Goal:** Build a web dashboard that lets anyone explore the FADR (First Attempt Delivery Rate) data, run predictions, and see the business impact of the proposed solutions — without needing to code.
 

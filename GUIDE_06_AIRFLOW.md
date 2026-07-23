@@ -1,4 +1,4 @@
-# Guide 05 — Pipeline Orchestration with Apache Airflow
+# Guide 06 — Pipeline Orchestration with Apache Airflow
 
 **Goal:** Use Apache Airflow to schedule and monitor the full pipeline: generate data → ingest → transform → export. Airflow is the most widely used orchestration tool in data engineering.
 
