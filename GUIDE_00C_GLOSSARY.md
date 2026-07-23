@@ -1,8 +1,9 @@
 # Guide 00C — Full Forms and Glossary
 
-Every abbreviation, acronym, and technical term used across all guides — with its full form and a one-line plain-English meaning.
+- Every abbreviation, acronym, and technical term used across all guides — with its full form and a one-line plain-English meaning.
 
-Bookmark this file. When you encounter a term you do not recognise, check here first.
+- Bookmark this file.
+- When you encounter a term you do not recognise, check here first.
 
 ---
 
