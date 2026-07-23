@@ -90,11 +90,17 @@ git branch  # list all branches; * marks your current branch
 
 ## Step 4.1 — Initialise a dbt project
 
-```bash
-python -c "import sys; sys.argv=['dbt','init','delivery_dbt']; import dbt.main; dbt.main.main()"
+```python
+python -c "
+import os
+from dbt.cli.main import dbtRunner
+dbtRunner().invoke(['init', 'delivery_dbt'])
+"
 ```
+
 **Note:**
 - `dbt.exe` is blocked by IT policy on this machine
+- `dbt.main` no longer exists in dbt 1.5+; the new API is `dbt.cli.main.dbtRunner`
 - This command runs dbt directly through Python and works identically
 
 When prompted:
@@ -377,40 +383,124 @@ models:
 
 ## Step 4.6 — Run dbt
 
+Make sure you are inside the `delivery_dbt` folder first:
+
 ```bash
-python -c "import sys; sys.argv=['dbt','run']; import dbt.main; dbt.main.main()"
+cd "c:\Users\DakshaKurhade\OneDrive - AIR INDIA LIMITED\Desktop\Delivery Optimisation\delivery_dbt"
 ```
 
-**Why:**
-- This executes all your `.sql` models against the database and creates the output tables
-- Think of it as running all your SQL transformations in the right order automatically
+Then run:
+
+```python
+python -c "
+import os
+from dbt.cli.main import dbtRunner
+home = os.path.expanduser('~')
+dbtRunner().invoke(['run', '--project-dir', '.', '--profiles-dir', home + '/.dbt'])
+"
+```
+
+**Expected output:**
+```
+3 of 3 OK created sql view model main.mart_fadr_by_window_and_alerts
+PASS=3 WARN=0 ERROR=0 SKIP=0 TOTAL=3
+```
+
+**Why run this:**
+- This executes all your `.sql` models against the database and creates the output views
+- dbt automatically determines the correct order — staging runs first, then marts (because mart models depend on the staging model being ready)
+- Without running this, no output tables exist — the mart models are just SQL files, not actual database tables yet
+- `dbt.main` no longer exists in dbt 1.5+; the new API is `dbt.cli.main.dbtRunner` — this is why we call it through Python
+
+**What each part means:**
+- `python -c "..."` — runs Python code inline from the command line without creating a separate script file
+- `import os` — loads Python's built-in module for reading file paths and environment variables
+- `os.path.expanduser('~')` — converts `~` into the full home path on your machine (e.g. `C:\Users\DakshaKurhade`)
+- `dbtRunner()` — creates a dbt runner using the new dbt 1.5+ programmatic API
+- `.invoke(['run', ...])` — tells dbt to execute the `run` command (build all models) with the flags listed
+- `--project-dir '.'` — tells dbt the current folder is the project root; dbt looks here for `dbt_project.yml`
+- `--profiles-dir home + '/.dbt'` — tells dbt exactly where `profiles.yml` lives; dbt cannot connect to the database without this
 
 ---
 
 ## Step 4.7 — Run dbt tests
 
-```bash
-python -c "import sys; sys.argv=['dbt','test']; import dbt.main; dbt.main.main()"
+```python
+python -c "
+import os
+from dbt.cli.main import dbtRunner
+home = os.path.expanduser('~')
+dbtRunner().invoke(['test', '--project-dir', '.', '--profiles-dir', home + '/.dbt'])
+"
 ```
 
-**Why:**
-- This runs all the tests you defined in the `mart_models_column_tests.yml` files
-- If any test fails — e.g. a NULL in `is_successful` — you know the data is broken before it reaches the dashboard or ML (Machine Learning) model
-- Data quality testing is a professional standard that separates senior engineers from juniors
+**Expected output:**
+```
+PASS=6 WARN=0 ERROR=0 SKIP=0 TOTAL=6
+```
+
+**Why run this:**
+- This runs all the tests you defined in `raw_deliveries_source_and_tests.yml` and `mart_models_column_tests.yml`
+- If any test fails — e.g. a NULL in `is_successful` or a duplicate `delivery_id` — you know the data is broken before it reaches the dashboard or ML model
+- Running tests after every `dbt run` is a professional standard — it proves your data is trustworthy, not just that the SQL executed without crashing
+- Data quality testing is what separates a data pipeline that occasionally produces wrong numbers from one that can be trusted
+
+**What each part means:**
+- `dbtRunner().invoke(['test', ...])` — tells dbt to run the `test` command instead of `run`; dbt auto-generates SQL queries from your YAML test definitions and executes them
+- `--project-dir '.'` — same as in Step 4.6; tells dbt this folder is the project root
+- `--profiles-dir home + '/.dbt'` — same as in Step 4.6; tells dbt where to find the database connection details
 
 ---
 
 ## Step 4.8 — Generate documentation
 
-```bash
-dbt docs generate  # build the HTML documentation from model metadata
-dbt docs serve     # start local web server; open http://localhost:8080
+```python
+python -c "
+import os
+from dbt.cli.main import dbtRunner
+home = os.path.expanduser('~')
+dbtRunner().invoke(['docs', 'generate', '--project-dir', '.', '--profiles-dir', home + '/.dbt'])
+"
 ```
 
-**Why:**
-- This creates a full website documenting every table, column, and dependency in your pipeline
-- Open `http://localhost:8080` in your browser
-- You can show this to an interviewer as proof of professional data engineering practice
+Then serve it:
+
+```python
+python -c "
+import os
+from dbt.cli.main import dbtRunner
+home = os.path.expanduser('~')
+dbtRunner().invoke(['docs', 'serve', '--project-dir', '.', '--profiles-dir', home + '/.dbt'])
+"
+```
+
+**Why run `docs generate`:**
+- dbt reads all your `.sql` files and `.yml` description files and compiles them into a static documentation site
+- Without this step there is no website to view — it must be generated first before it can be served
+- The output is a set of HTML/JSON files saved inside `delivery_dbt/target/`
+
+**What each part means (`docs generate`):**
+- `['docs', 'generate', ...]` — tells dbt to compile documentation from your models, sources, and YAML description files into the `target/` folder
+- `--project-dir '.'` — tells dbt where to find your project files
+- `--profiles-dir home + '/.dbt'` — tells dbt where to find the database connection; needed because `docs generate` also queries the database to capture actual column types
+
+**Why run `docs serve`:**
+- This starts a local web server so you can open the generated documentation in a browser
+- Open `http://localhost:8080` to see a full interactive site showing every table, column, dependency graph, and test result
+- You can show this to an interviewer as proof of professional data engineering practice — almost no junior engineers produce this
+
+**What each part means (`docs serve`):**
+- `['docs', 'serve', ...]` — tells dbt to start a local HTTP server pointing at the generated docs in `target/`
+- `--project-dir '.'` — same as above; tells dbt where the project lives
+- `--profiles-dir home + '/.dbt'` — same as above; needed for the serve command to resolve paths correctly
+
+**How to open the docs in your browser:**
+- Make sure the terminal is still running (the `docs serve` command must stay running — do not close it)
+- Open your browser (Chrome, Edge, etc.)
+- Type exactly this in the address bar and press Enter: `http://127.0.0.1:8080`
+- If that does not load, try: `http://localhost:8080`
+- The terminal will appear frozen/stuck — that is correct, it is the web server running
+- To stop the server when you are done: press `Ctrl + C` in the terminal
 
 ---
 
@@ -429,6 +519,14 @@ You now have:
 - This is the full Git workflow you do at the end of every guide
 - In a real office this is called "raising a PR (Pull Request)"
 - You will do this 13 times — by the third time it feels automatic
+
+**First — navigate back to the root folder:**
+```bash
+cd "c:\Users\DakshaKurhade\OneDrive - AIR INDIA LIMITED\Desktop\Delivery Optimisation"
+```
+- The dbt steps ran from inside `delivery_dbt/` — you need to go back up before any Git command
+- All Git commands in every guide are always run from this root folder
+- You can confirm you are in the right place by checking your terminal prompt — it should end with `Delivery Optimisation`
 
 ---
 
@@ -473,11 +571,17 @@ Press `q` to exit the diff view.
 
 ### Step G5 — Stage your files
 
+**Make sure you are in the root folder before staging — if you ran dbt steps earlier, you may still be inside `delivery_dbt/`:**
 ```bash
-git add models/staging/stg_deliveries_cleaned.sql          # stage the staging SQL model
-git add models/marts/mart_fadr_by_city_and_address.sql     # stage the FADR mart model
-git add models/marts/mart_fadr_by_window_and_alerts.sql    # stage the window analysis model
-git add dbt_project.yml                            # stage the dbt project config
+cd "c:\Users\DakshaKurhade\OneDrive - AIR INDIA LIMITED\Desktop\Delivery Optimisation"
+```
+
+```bash
+git add delivery_dbt/models/staging/stg_deliveries_cleaned.sql      # stage the staging SQL model
+git add delivery_dbt/models/marts/mart_fadr_by_city_and_address.sql  # stage the FADR mart model
+git add delivery_dbt/models/marts/mart_fadr_by_window_and_alerts.sql # stage the window analysis model
+git add delivery_dbt/dbt_project.yml                                 # stage the dbt project config
+git add GUIDE_04_DBT.md                                              # stage the guide file
 ```
 
 **What staging means:**
