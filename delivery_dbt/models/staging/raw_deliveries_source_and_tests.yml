@@ -1,0 +1,20 @@
+version: 2  # dbt config format version (always 2 for modern dbt)
+
+sources:
+  - name: main  # schema name — must match profiles.yml schema: main
+    description: Raw delivery data loaded from CSV
+    tables:
+      - name: deliveries  # raw table name in the database
+        description: One row per delivery attempt
+        columns:
+          - name: delivery_id
+            description: Unique identifier for each delivery attempt
+            tests:
+              - unique      # test: no two rows share the same delivery_id
+              - not_null    # test: delivery_id must never be NULL
+          - name: is_successful
+            description: 1 if delivered, 0 if failed
+            tests:
+              - not_null    # test: every row must have a value here
+              - accepted_values:
+                  values: [0, 1]  # test: only 0 or 1 allowed, nothing else

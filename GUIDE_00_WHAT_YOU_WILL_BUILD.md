@@ -20,7 +20,8 @@ Run `streamlit run src/dashboard.py` and open your browser. You will see:
 - **City heatmap** — Mumbai × Apartment × Morning = the worst combination, colour-coded
 - **Business impact calculator** — you type any daily volume (e.g. 100,000) and it calculates: at current FADR, ₹11 lakh is wasted per day on repeat trips. Improve FADR by 5% and save ₹4 lakh/day
 
-This is not a static image. It is an interactive web app — you change inputs, the numbers update.
+- This is not a static image.
+- It is an interactive web app — you change inputs, the numbers update.
 
 ---
 
@@ -35,7 +36,8 @@ Terminal 1 shows:
 [0003] → Bangalore    | PG/Hostel          | IN_TRANSIT
 ```
 
-Terminal 2 shows the consumer reading events as they arrive and printing a live FADR that updates every 10 messages. This simulates exactly what a delivery platform does in production — every status change from every delivery partner streams into a central system in real time.
+- Terminal 2 shows the consumer reading events as they arrive and printing a live FADR that updates every 10 messages.
+- This simulates exactly what a delivery platform does in production — every status change from every delivery partner streams into a central system in real time.
 
 ---
 
@@ -48,7 +50,7 @@ Run `docker-compose up` then open Airflow at `localhost:8080`. You will see:
 - Trigger it manually — watch each box turn green as it succeeds
 - Click any task to see its full log output
 
-This is the same UI that data engineers at real companies use every day to monitor production pipelines.
+- This is the same UI that data engineers at real companies use every day to monitor production pipelines.
 
 ---
 
@@ -66,13 +68,15 @@ Apartment + Evening window + Preferences set → Success probability: 78.1%
 Improvement from preferences + better window: +25.8 percentage points
 ```
 
-This is the quantified answer to the original problem. The model learned from 40,000 historical deliveries that changing the window and adding preferences moves success probability by 25+ points for the hardest address type.
+- This is the quantified answer to the original problem.
+- The model learned from 40,000 historical deliveries that changing the window and adding preferences moves success probability by 25+ points for the hardest address type.
 
 ---
 
 ### 5. A GitHub repository
 
-At the end you push everything to GitHub. Anyone — a recruiter, a hiring manager, a fellow engineer — can go to your profile and see:
+- At the end you push everything to GitHub.
+- Anyone — a recruiter, a hiring manager, a fellow engineer — can go to your profile and see:
 
 - 13 guide files explaining the full project
 - Python code for every component
@@ -105,24 +109,36 @@ At the end you push everything to GitHub. Anyone — a recruiter, a hiring manag
 
 ## How this helps you get a job
 
-**What most candidates do:** List tools on a CV. Say "I know Spark" in an interview. Cannot answer "how does partition pruning work?" or "what is a consumer group?"
+**What most candidates do:**
+- List tools on a CV.
+- Say "I know Spark" in an interview.
+- Cannot answer "how does partition pruning work?" or "what is a consumer group?"
 
-**What you will be able to do:** Point to running code. Explain why you chose each tool. Answer follow-up questions because you built it yourself and read the WHY for every step.
+**What you will be able to do:**
+- Point to running code.
+- Explain why you chose each tool.
+- Answer follow-up questions because you built it yourself and read the WHY for every step.
 
 **The interview conversation this enables:**
 
 *"Tell me about a data engineering project."*
 
-> "I built a delivery optimisation pipeline end-to-end — the problem was that failed deliveries waste fuel and cost money, and I wanted to quantify how much and whether data could predict it. The batch pipeline uses Airflow to schedule daily runs: Python generates data, it lands in GCS, loads into BigQuery, dbt transforms it into clean mart tables. The real-time side uses Kafka — a producer streams delivery status events, a consumer reads them and computes a live FADR. Everything runs with docker-compose up. On top of that I trained a Random Forest model that predicts delivery success with 83% accuracy — the key finding is that apartments in morning windows fail 35% more, and customers who set delivery preferences succeed 25 points higher. The whole thing is on GitHub with CI/CD running 7 automated tests on every push."
+- "I built a delivery optimisation pipeline end-to-end — the problem was that failed deliveries waste fuel and cost money, and I wanted to quantify how much and whether data could predict it"
+- "The batch pipeline uses Airflow to schedule daily runs: Python generates data, it lands in GCS, loads into BigQuery, dbt transforms it into clean mart tables"
+- "The real-time side uses Kafka — a producer streams delivery status events, a consumer reads them and computes a live FADR"
+- "Everything runs with docker-compose up"
+- "On top of that I trained a Random Forest model that predicts delivery success with 83% accuracy — the key finding is that apartments in morning windows fail 35% more, and customers who set delivery preferences succeed 25 points higher"
+- "The whole thing is on GitHub with CI/CD running 7 automated tests on every push"
 
-That answer covers: pipeline architecture, GCP, dbt, Airflow, Kafka, Docker, ML, CI/CD, and business impact — in one minute, from one project.
+- That answer covers: pipeline architecture, GCP, dbt, Airflow, Kafka, Docker, ML, CI/CD, and business impact — in one minute, from one project.
 
 ---
 
 ## Realistic expectation
 
-This project, done properly and understood deeply, makes you competitive for **0–2 year data engineering roles**. It covers the core stack that most entry-level and junior JDs ask for.
+- This project, done properly and understood deeply, makes you competitive for **0–2 year data engineering roles**.
+- It covers the core stack that most entry-level and junior JDs ask for.
+- What it cannot replace is experience from a real production system — scale, on-call incidents, team collaboration, legacy code.
+- But it closes the technical gap significantly and gives you something concrete to talk about in every interview.
 
-What it cannot replace is experience from a real production system — scale, on-call incidents, team collaboration, legacy code. But it closes the technical gap significantly and gives you something concrete to talk about in every interview.
-
-**Start with Guide 01. Do every command yourself. Read the WHY for each step. That is the whole point.**
+- **Start with Guide 01. Do every command yourself. Read the WHY for each step. That is the whole point.**
