@@ -96,14 +96,14 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
     # → &&              = only run the second command IF the first succeeded (exit code 0)
     # → dbt run         = run all dbt transformation models
     # → --profiles-dir ~/.dbt = tell dbt where to find database credentials
-    bash_command='cd delivery_dbt && dbt run --profiles-dir ~/.dbt',  # cd to dbt dir, then run models
+    bash_command='cd /opt/airflow/delivery_dbt && dbt run --profiles-dir ~/.dbt',  # absolute path — container working dir is not /opt/airflow
     )
 
     t4_test = BashOperator(  # task 4: run dbt data quality tests
         task_id='dbt_test_data_quality',  # dbt has no single script file; name reflects the dbt command
         # Same && pattern as above: cd first, then only run 'dbt test' if cd succeeded
         # → dbt test = runs all tests defined in your dbt schema.yml files
-        bash_command='cd delivery_dbt && dbt test --profiles-dir ~/.dbt',  # cd to dbt dir, then test data quality
+        bash_command='cd /opt/airflow/delivery_dbt && dbt test --profiles-dir ~/.dbt',  # absolute path — container working dir is not /opt/airflow
     )
 
     t5_export = PythonOperator(  # task 5: export the mart table to CSV
