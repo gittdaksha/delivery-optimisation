@@ -1,6 +1,6 @@
 # Guide 06 — Containerise Everything with Docker
 
-**Goal:** Package the entire pipeline — Kafka, the Python scripts, and Airflow — into Docker containers using Docker Compose. This is how real data pipelines are deployed in production.
+**Goal:** Package the entire pipeline — Kafka, Airflow, Postgres — into Docker containers using Docker Compose. This is how real data pipelines are deployed in production.
 
 ---
 
@@ -8,8 +8,8 @@
 
 - Docker appears on **85%+ of data engineering job descriptions**
 - It is the universal way to package and ship software
-- If you say "I built a pipeline" but it only runs on your laptop with manual setup, that's a prototype
-- If you say "it runs with `docker-compose up`", that's production-ready thinking
+- If you say "I built a pipeline" but it only runs on your laptop with manual setup, that is a prototype
+- If you say "it runs with `docker compose up`", that is production-ready thinking
 
 **What Docker does:**
 - Wraps your code + its exact dependencies + the operating system layer into a container image
@@ -27,388 +27,377 @@
 Docker Compose lets you define multiple containers and their relationships in a single `docker-compose.yml` file, then start all of them with one command:
 
 ```bash
-docker-compose up  # start all services defined in docker-compose.yml
+docker compose up -d
 ```
 
-For this project, Compose will start:
+For this project, Compose starts:
 1. **Zookeeper** — Kafka's coordination service
 2. **Kafka** — the message broker
-3. **Postgres** — Airflow's metadata database (more production-realistic than SQLite)
-4. **Airflow Webserver** — the UI at localhost:8080
-5. **Airflow Scheduler** — runs DAGs on schedule
+3. **kafka-setup** — one-shot container that creates the `delivery-events` topic then exits
+4. **Postgres** — Airflow's metadata database
+5. **airflow-init** — one-shot container that initialises the Airflow database then exits
+6. **Airflow Webserver** — the UI at port 8080
+7. **Airflow Scheduler** — runs DAGs on schedule
+
+---
+
+## Why GitHub Codespaces instead of local Docker
+
+- Airflow requires Linux to run — it will not work on Windows natively
+- Company laptops at Air India do not have admin rights to install WSL2 or Docker Desktop
+- GitHub Codespaces is a free cloud Linux machine — Docker comes pre-installed, no admin rights needed
+- All Docker work in this guide and Guide 07 runs in Codespaces, not your local machine
 
 ---
 
 ## Git — Before You Start This Guide
 
-- Every guide begins the same way in a real office: you make sure you are on the right branch and it is up to date before touching any files
-
 ### Step G1 — Make sure you are on develop and it is current
 
 ```bash
-git checkout develop  # switch to the existing develop branch
+git checkout develop
 ```
 **What this does:**
 - Switches you to the develop branch
-- You always create feature branches FROM develop, never from main and never from another feature branch
-
-- No `-b` here — this switches to an existing branch
-- You do not use `-b` when the branch already exists
+- You always create feature branches FROM develop
 
 ```bash
-git pull origin develop  # download + merge latest changes from GitHub
+git pull origin develop
 ```
 **What this does:**
 - Downloads any changes from GitHub that you do not have locally
-- In an office, a colleague may have merged something since you last worked
-- `pull` = download + merge in one command
-
-**What each part means:**
-- `origin` — download from GitHub (the remote)
-- `develop` — specifically from the develop branch on GitHub
 
 ```bash
-git status  # show all changed and untracked files
+git status
 ```
-**What this does:**
-- Shows the current state
 - You should see `On branch develop, nothing to commit, working tree clean`
-- If you see modified files here, deal with them before moving forward — do not carry unrelated changes into a new branch
-
-- No flags here — `git status` always shows full current state
 
 ### Step G2 — Create your feature branch
 
 ```bash
-git checkout -b feature/guide-06-docker  # -b = create new branch AND switch to it
+git checkout -b feature/guide-06-docker
 ```
 **What `-b` means:**
 - Create a new branch AND switch to it in one command
-- Without `-b`, checkout only switches to an existing branch and would error if the branch does not exist
-
-**Why a new branch for every guide:**
-- Each branch is one unit of work
-- If something breaks, you can delete the branch and start fresh without affecting develop or main
-- In an office, each feature or fix lives on its own branch for the same reason
 
 Confirm you are on the right branch:
 ```bash
-git branch  # list all branches; * marks the one you are on
+git branch
 ```
 - You will see a `*` next to your current branch
-- That `*` means "you are here"
 
 ---
 
-## Step 6.1 — Install Docker
+## Step 6.1 — Open your project in GitHub Codespaces
 
-Download Docker Desktop from https://www.docker.com/products/docker-desktop/
+- Go to your GitHub repository in the browser
+- Click the green **Code** button → **Codespaces** tab → **Create codespace on develop**
+- A VS Code window opens in the browser — this is a full Linux machine with Docker already installed
+- Your project folder is available inside it — all your files are there
 
-After install, verify:
-```bash
-docker --version          # print the installed Docker version
-docker-compose --version  # print the installed Compose version
+---
+
+## Step 6.2 — Create `requirements.txt`
+
+**What `requirements.txt` does and why it exists:**
+- **What it does:** Lists every Python package the pipeline needs, with pinned version numbers
+- **Why separate:** The `Dockerfile` references this file to install packages — keeping the package list separate from the build instructions means you can update packages without touching the Dockerfile
+- **Input:** None (it is a plain text list)
+- **Output:** Used by `pip install -r requirements.txt` and by the `Dockerfile`
+- **Pipeline position:** Written once → referenced by both local setup and Docker builds
+
+Create the file `requirements.txt` in the project root:
+
+```
+faker==24.3.0
+pandas==2.2.1
+numpy==1.26.4
+requests==2.31.0
+kafka-python==2.0.2
+scikit-learn==1.4.1.post1
+matplotlib==3.8.3
+streamlit==1.32.2
 ```
 
 ---
 
-## Step 6.2 — Create `docker-compose.yml`
+## Step 6.3 — Create `Dockerfile`
+
+**What `Dockerfile` does and why it exists:**
+- **What it does:** A recipe that tells Docker how to build a custom image for your Python pipeline — which base OS to use, which packages to install, and which files to copy in
+- **Why separate:** `docker-compose.yml` says *which* services to run and how they connect. `Dockerfile` says *how to build* the custom Python image. They answer different questions and are always kept as separate files
+- **Input:** `python:3.11-slim` base image + `requirements.txt`
+- **Output:** A portable container image that runs your pipeline identically on any machine
+- **Pipeline position:** `requirements.txt` + `src/` scripts → **this file** → custom Docker image
+
+Create the file `Dockerfile` in the project root:
+
+```dockerfile
+# Start from the official slim Python 3.11 image
+# slim = stripped-down version; smaller size, no GUI tools, no compilers
+# → full python:3.11 image is ~900MB; slim is ~130MB
+FROM python:3.11-slim
+
+# Set the working directory inside the container
+# → all subsequent commands (COPY, RUN, CMD) run from /app
+# → if /app does not exist, Docker creates it automatically
+WORKDIR /app
+
+# Copy requirements.txt first — before copying source code
+# → Docker builds images in layers; each instruction is one layer
+# → Docker caches layers that have not changed
+# → requirements.txt changes rarely; src/ changes often
+# → this order means pip install is only re-run when requirements.txt changes,
+#   not every time you edit a Python file — much faster rebuilds
+COPY requirements.txt .
+
+# Install Python packages
+# --no-cache-dir = do not store the pip download cache inside the image
+# → saves ~50-100MB of image size
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code and data into the container
+COPY src/ ./src/
+COPY data/ ./data/
+
+# Default command when the container starts
+# → docker run <image> runs this unless you override it
+# → CMD is overridable: docker run <image> python src/ingest.py runs ingest instead
+CMD ["python", "src/generate_data.py"]
+```
+
+---
+
+## Step 6.4 — Create `docker-compose.yml`
+
+**What `docker-compose.yml` does and why it exists:**
+- **What it does:** Declares every service the project needs and how they connect, so the full stack starts with one command
+- **Why separate:** This is infrastructure configuration, not application code — it describes *what to run and how to wire it together*
+- **Input:** None (configuration file — declares services, not data)
+- **Output:** Running containers accessible at their ports (Airflow on 8080, Kafka on 9092)
+- **Pipeline position:** All Python scripts + Airflow DAGs → **this file** → all services running as containers
 
 Create the file `docker-compose.yml` in the project root:
 
-**How to create this file:**
-```bash
-notepad docker-compose.yml  # open Notepad; click Yes to create the file
-```
-- Notepad will open (or ask to create the file — click Yes)
-- Paste the content below into it, then press **Ctrl+S** to save and close Notepad
-
-**What `docker-compose.yml` does and why it exists:**
-- **What it does:** Declares every service the project needs (Kafka, Postgres, Airflow) and how they connect, so the full stack starts with one command
-- **Why separate:** This is infrastructure configuration, not application code — it describes *what to run and how to wire it together*, whereas your Python scripts describe *what the code does*; keeping them separate means you can change the stack without touching any pipeline logic
-- **Input:** None (this is a configuration file — it declares services, not data)
-- **Output:** Running containers (Zookeeper, Kafka, Postgres, Airflow webserver, Airflow scheduler) accessible at their localhost ports
-- **Pipeline position:** All existing Python scripts + Airflow DAGs → **this file** → all services running as containers accessible at their localhost ports
-
 ```yaml
-version: '3.8'  # Compose file format version; 3.8 supports healthchecks
-
-networks:
-  delivery-net:          # name of the shared virtual network
-    driver: bridge       # bridge = containers on same host find each other by name
-
-volumes:
-  postgres-db-volume:    # named volume so database data survives container restarts
-
 services:
 
-  # ── Zookeeper (Kafka dependency) ─────────────────────────────────────────
+  # ── Zookeeper ─────────────────────────────────────────────────────────────
+  # → Kafka needs Zookeeper to coordinate its brokers (leader election, config)
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0  # official Confluent Zookeeper image
-    container_name: zookeeper               # fixed name so other services can reference it
-    networks: [delivery-net]                # join the shared network above
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    networks: [delivery-net]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181   # port Kafka uses to talk to Zookeeper
       ZOOKEEPER_TICK_TIME: 2000     # heartbeat interval in milliseconds
 
-  # ── Kafka Broker ─────────────────────────────────────────────────────────
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  # → the message broker: producers write to it, consumers read from it
   kafka:
-    image: confluentinc/cp-kafka:7.6.0  # official Confluent Kafka image
+    image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     networks: [delivery-net]
-    # What depends_on does: tells Docker Compose that this service should only
-    # start after the listed services have started. Kafka needs Zookeeper running
-    # first; without this, Kafka would crash on startup with a connection error.
-    depends_on: [zookeeper]
-    # What ports: means: maps a port on your host machine to a port inside the
-    # container. "9092:9092" means: when something on your laptop connects to
-    # port 9092, Docker routes it into the container's port 9092. The format is
-    # always host_port:container_port.
-    # → format: "host_machine_port:inside_container_port"
-    # → "9092:9092"  means  your laptop:9092  →  Docker routes to  →  container:9092
-    # → if you wrote "9999:9092" instead, your script would connect to localhost:9999
-    #   and Docker would silently route that traffic to port 9092 inside the container
+    depends_on: [zookeeper]         # Kafka cannot start without Zookeeper
     ports:
-      - "9092:9092"     # expose to host so Python scripts can connect
-    # What environment: variables are: these set environment variables inside the
-    # container — equivalent to running 'export KAFKA_BROKER_ID=1' in the shell
-    # before starting Kafka. Each container reads these to configure itself.
-    # → each key: value pair becomes an env var the app reads at startup
-    # → KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 means "find Zookeeper at hostname
-    #   'zookeeper' (the container_name above), port 2181" — Docker's bridge network
-    #   lets containers find each other by container_name, like a tiny internal DNS
+      - "9092:9092"                 # external port so your Python scripts can connect
     environment:
-      KAFKA_BROKER_ID: 1                          # unique ID for this broker
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181     # where Kafka finds Zookeeper
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092  # how broker announces itself
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT  # no encryption (dev only)
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT  # listener used between brokers
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1    # 1 = no replication (fine for dev)
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"      # create topics on first use
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT://localhost:9092 — advertise localhost so Python scripts running in
+      # the Codespaces terminal (outside Docker) can connect via the mapped port
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1            # 1 broker = 1 replica is enough
 
-  # ── Create Kafka topic on startup ────────────────────────────────────────
+  # ── Kafka Setup ───────────────────────────────────────────────────────────
+  # → one-shot container that creates the Kafka topic then exits
   kafka-setup:
-    image: confluentinc/cp-kafka:7.6.0  # reuse Kafka image; it has the CLI tools
+    image: confluentinc/cp-kafka:7.5.0
     container_name: kafka-setup
     networks: [delivery-net]
-    depends_on: [kafka]           # wait for Kafka before running
-    entrypoint: ["/bin/sh", "-c"] # override default entrypoint to run a shell script
-    command: |
-      "
-      echo 'Waiting for Kafka...'
-      sleep 10                    # give Kafka time to fully start before creating topic
-      kafka-topics --create --if-not-exists \
-        --bootstrap-server kafka:29092 \
-        --topic delivery-events \
-        --partitions 3 \          # 3 partitions = 3 consumers can read in parallel
-        --replication-factor 1    # 1 = no replication (fine for single-broker dev)
-      echo 'Topic delivery-events created.'
-      "
+    depends_on: [kafka]
+    entrypoint: /bin/bash
+    command: >-
+      -c "echo 'Waiting for Kafka...' &&
+      cub kafka-ready -b kafka:9092 1 30 &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic delivery-events --partitions 3 --replication-factor 1 &&
+      echo 'Topic created.'"
 
-  # ── PostgreSQL (Airflow metadata DB) ─────────────────────────────────────
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  # → Airflow stores its metadata (DAG runs, task states) in this database
   postgres:
-    image: postgres:15            # official Postgres 15 image
+    image: postgres:15
     container_name: airflow-postgres
     networks: [delivery-net]
     environment:
-      POSTGRES_USER: airflow      # database username Airflow will use
-      POSTGRES_PASSWORD: airflow  # password (keep simple for dev)
-      POSTGRES_DB: airflow        # name of the database to create
-    # What volumes: are: volumes mount a storage location into the container so data
-    # persists even when the container is stopped or removed. Without this, all
-    # database data would be lost every time the container restarts. Here,
-    # 'postgres-db-volume' is a named volume Docker manages — it is like an external
-    # hard drive permanently attached to the container.
-    # → format: "volume_name_or_host_path:path_inside_container"
-    # → "postgres-db-volume:/var/lib/postgresql/data" means:
-    #   take the named volume 'postgres-db-volume' (Docker manages its location on your disk)
-    #   and mount it at /var/lib/postgresql/data inside the container
-    #   (that is where Postgres writes its database files)
-    # → stopping/removing the container does NOT touch the volume — data survives
-    volumes:
-      - postgres-db-volume:/var/lib/postgresql/data  # where Postgres stores its files
-    # What healthcheck does: regularly runs a test command inside the container to
-    # confirm the service is genuinely ready (not just started). Here it runs
-    # pg_isready to confirm Postgres is accepting connections. Other services can
-    # use 'condition: service_healthy' in their depends_on to wait for this check
-    # to pass before starting — more reliable than just waiting for the container to start.
+      POSTGRES_USER: airflow       # database username
+      POSTGRES_PASSWORD: airflow   # database password
+      POSTGRES_DB: airflow         # database name
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]  # run pg_isready inside container
-      interval: 10s  # check every 10 seconds
-      retries: 5     # mark unhealthy after 5 consecutive failures
+      test: ["CMD", "pg_isready", "-U", "airflow"]  # check Postgres is accepting connections
+      interval: 5s
+      retries: 5
 
-  # ── Airflow initialisation (runs once) ────────────────────────────────────
+  # ── Airflow Init ──────────────────────────────────────────────────────────
+  # → one-shot container: initialises the Airflow database and creates admin user
+  # → runs once then exits — webserver waits for it to finish before starting
   airflow-init:
-    image: apache/airflow:2.9.2  # official Airflow image
+    image: apache/airflow:2.9.2
     container_name: airflow-init
     networks: [delivery-net]
     depends_on:
       postgres:
         condition: service_healthy  # wait until Postgres passes its healthcheck
     environment:
-      # → connection string format: dialect+driver://username:password@hostname/database
-      # → "postgresql+psycopg2://airflow:airflow@postgres/airflow" breaks down as:
-      #   postgresql+psycopg2 = Postgres via the psycopg2 Python driver
-      #   airflow:airflow     = username:password (set in the postgres service above)
-      #   @postgres           = hostname 'postgres' (the container_name of the DB container)
-      #   /airflow            = the database name to connect to
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow  # DB connection string
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor  # run tasks locally (not distributed)
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
     volumes:
-      # → "./dags:/opt/airflow/dags" = host folder on left, container path on right
-      # → any file you save to ./dags on your laptop instantly appears at
-      #   /opt/airflow/dags inside the container — no rebuild needed
       - ./dags:/opt/airflow/dags  # mount your DAG files into the container
-    entrypoint: /bin/bash         # run as a shell script
-    command: -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"  # set up DB + create admin user
+    entrypoint: /bin/bash
+    command: -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
 
   # ── Airflow Webserver ─────────────────────────────────────────────────────
   airflow-webserver:
     image: apache/airflow:2.9.2
     container_name: airflow-webserver
     networks: [delivery-net]
-    depends_on: [airflow-init]  # wait for DB init to finish before starting
-    # → depends_on: [airflow-init] means Docker Compose will not start
-    #   airflow-webserver until the airflow-init container has finished running
-    # → prevents the webserver crashing because the database tables do not exist yet
+    depends_on: [airflow-init]
     ports:
-      # → "8080:8080" = your browser visits localhost:8080 → Docker routes → container:8080
-      - "8080:8080"  # Airflow UI available at localhost:8080
+      - "8080:8080"               # Airflow UI available at localhost:8080
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__WEBSERVER__SECRET_KEY: delivery-opt-secret  # secret for session cookies
+      AIRFLOW__WEBSERVER__SECRET_KEY: delivery-opt-secret
+      # → installs these Python packages inside the container on every startup
+      # → needed because the base Airflow image does not include faker, pandas, numpy
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core==1.8.0 dbt-sqlite==1.8.1"
     volumes:
-      - ./dags:/opt/airflow/dags    # your DAG files
-      - ./src:/opt/airflow/src      # your Python scripts
-      - ./data:/opt/airflow/data    # your data files
-    command: webserver              # start the web UI process
+      - ./dags:/opt/airflow/dags          # your DAG files
+      - ./src:/opt/airflow/src            # your Python scripts
+      - ./data:/opt/airflow/data          # your data files
+      - ./delivery_dbt:/opt/airflow/delivery_dbt  # dbt project folder
+    command: webserver
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]  # hit the health endpoint
-      interval: 30s  # check every 30 seconds
-      retries: 5     # mark unhealthy after 5 failures
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      retries: 5
 
   # ── Airflow Scheduler ─────────────────────────────────────────────────────
+  # → reads DAG files, decides when tasks are due, sends them to the executor
   airflow-scheduler:
     image: apache/airflow:2.9.2
     container_name: airflow-scheduler
     networks: [delivery-net]
-    depends_on: [airflow-webserver]  # start after webserver is up
+    depends_on: [airflow-webserver]
     environment:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      # → same packages needed here — the scheduler is the process that actually runs tasks
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core==1.8.0 dbt-sqlite==1.8.1"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
-    command: scheduler  # start the scheduler process (triggers DAG runs on schedule)
+      - ./delivery_dbt:/opt/airflow/delivery_dbt
+    command: scheduler
+
+# ── Shared network ────────────────────────────────────────────────────────
+# → all containers join this network so they can reach each other by container_name
+networks:
+  delivery-net:
+    driver: bridge
 ```
+
+**Key concepts in this file:**
+
+**What `depends_on` does:**
+- Controls startup order — `airflow-webserver: depends_on: [airflow-init]` means the webserver will not start until airflow-init has finished
+- Without this, the webserver would crash on startup because the database tables do not exist yet
+
+**What `volumes` does:**
+- A volume mount shares a folder from your machine into the container
+- `./dags:/opt/airflow/dags` means: your local `dags/` folder appears inside the container at `/opt/airflow/dags/`
+- Changes you make locally are immediately visible inside the container — no rebuild needed
+
+**What `healthcheck` does:**
+- Defines a command Docker runs periodically to confirm the service is genuinely ready
+- Other services use `condition: service_healthy` to wait for this before starting
+
+**What `_PIP_ADDITIONAL_REQUIREMENTS` does:**
+- The base Airflow image does not include `faker`, `pandas`, or `numpy`
+- This variable tells the container to `pip install` those packages on every startup
+- Set on BOTH webserver and scheduler — the scheduler is the process that actually runs task code
 
 ---
 
-## Step 6.3 — Create `Dockerfile` for the Python pipeline
+## Step 6.5 — Fix folder permissions in Codespaces
 
-Create the file `Dockerfile` in the project root:
-
-**How to create this file:**
-```bash
-notepad Dockerfile  # open Notepad; click Yes to create the file
-```
-- Notepad will open (or ask to create the file — click Yes)
-- Paste the content below into it, then press **Ctrl+S** to save and close Notepad
-
-**What `Dockerfile` does and why it exists:**
-- **What it does:** A recipe that tells Docker how to build a custom image for your Python pipeline — which base OS to use, which packages to install, and which files to copy in
-- **Why separate:** `docker-compose.yml` says *which* services to run and how they connect; `Dockerfile` says *how to build* the custom image for your own Python code — they answer different questions and are always kept as separate files
-- **Input:** `python:3.11-slim` base image + `requirements.txt` (list of Python packages to install)
-- **Output:** Custom Docker image with all dependencies installed, ready to run any pipeline script on any machine
-- **Pipeline position:** `requirements.txt` + `src/` scripts + `data/` files → **this file** → a portable container image that runs your pipeline identically on any machine
-
-```dockerfile
-FROM python:3.11-slim  # start from official slim Python 3.11 image
-
-WORKDIR /app  # set /app as the working directory inside the container
-
-COPY requirements.txt .  # copy requirements first (Docker caches this layer)
-RUN pip install --no-cache-dir -r requirements.txt  # --no-cache-dir keeps image smaller
-
-COPY src/ ./src/    # copy your pipeline scripts into the container
-COPY sql/ ./sql/    # copy SQL files
-COPY data/ ./data/  # copy data files
-
-CMD ["python", "src/generate_data.py"]  # default command when container starts
-```
-
----
-
-## Step 6.4 — Start the full stack
-
-**What this does:** Starts all services defined in `docker-compose.yml` simultaneously.
+The Airflow container runs as a non-root user. It will get "Permission denied" when writing to your mounted `data/` folder unless you fix this first.
 
 ```bash
-docker-compose up -d  # -d = detached; runs in background, returns terminal to you
+mkdir -p data/raw data/processed
 ```
-
-**What `-d` (detached mode) means:**
-- The `-d` flag runs all containers in the background
-- Your terminal is immediately returned to you instead of streaming all the logs
-- Without `-d`, closing the terminal would stop all the containers
-
-**Why `-d`?**
-- In production, services run as background daemons
-- They don't stop when you close a terminal
-
----
-
-## Step 6.5 — Check all containers are running
-
-**What `docker-compose ps` does:**
-- Lists all containers defined in your `docker-compose.yml` along with their current status (running, stopped, healthy)
-- Use this to verify everything started correctly
+**What this does:**
+- Creates `data/raw/` and `data/processed/` if they do not exist
+- `-p` means: create parent folders too, no error if already exists
 
 ```bash
-docker-compose ps  # list all containers and their current status
+sudo chmod -R 777 data
 ```
-
-You should see all 6 containers with status `Up` or `healthy`.
+**What each part means:**
+- `sudo` — run as superuser (needed to change permissions)
+- `chmod` — change file permissions
+- `-R` — recursive: applies to the folder AND everything inside it
+- `777` — gives full read/write/execute to owner, group, and everyone else (including the container user)
+- `data` — the folder to apply this to
 
 ---
 
-## Step 6.6 — Watch logs
+## Step 6.6 — Start the full stack
 
-**What `docker-compose logs -f` does:**
-- Streams the live log output from a container to your terminal
-- The `-f` flag means "follow" — it keeps updating in real time, like watching a file grow, rather than printing once and stopping
+In the Codespaces terminal:
 
 ```bash
-docker-compose logs -f kafka            # -f = follow; streams live log output
-docker-compose logs -f airflow-webserver  # watch webserver logs in real time
+docker compose up -d
 ```
+**What each part means:**
+- `docker compose` — Docker Compose CLI tool, reads `docker-compose.yml`
+- `up` — start all services defined in the file
+- `-d` — detached mode: runs containers in the background, gives you the terminal back
 
-`-f` means "follow" — like `tail -f` for Docker logs.
+Wait about 2 minutes for all containers to start and for Airflow to install pip packages. Check status:
+
+```bash
+docker ps
+```
+**What to look for:**
+- All containers show `Up` or `(healthy)` in the STATUS column
+- `kafka-setup` and `airflow-init` will show `Exited (0)` — this is correct, they ran once and finished
+- `airflow-webserver` takes the longest — it is installing packages via `_PIP_ADDITIONAL_REQUIREMENTS`
 
 ---
 
-## Step 6.7 — Open Airflow UI
+## Step 6.7 — Open the Airflow UI
 
-Go to `http://localhost:8080`
+- In Codespaces, click the **PORTS** tab at the bottom of the screen
+- Find port `8080`
+- Right-click it → **Port Visibility** → **Public**
+- Click the globe icon next to port `8080`
+
+Login:
 - Username: `admin`
 - Password: `admin`
-
-- Your DAG (Directed Acyclic Graph) from Guide 05 is now running inside a Docker container with a PostgreSQL backend
-- This is the same architecture as production Airflow at real companies
 
 ---
 
 ## Step 6.8 — Stop everything
 
 ```bash
-docker-compose down  # stop and remove all containers (volumes are kept)
+docker compose down
 ```
-
-**Why this matters:**
-- The entire infrastructure — Kafka, Postgres, Airflow — starts with one command and stops with one command
-- No manual setup, no "which process is running", no version conflicts
+**What this does:**
+- Stops and removes all containers
+- Named volumes (database data) are kept — your data survives
 
 ---
 
@@ -422,302 +411,152 @@ docker-compose down  # stop and remove all containers (volumes are kept)
 | Network | Virtual network containers communicate on | Services find each other by container name |
 | `depends_on` | Service A waits for B to start | Prevents startup race conditions |
 | `healthcheck` | Checks if a service is truly ready | More reliable than `depends_on` alone |
-| `docker-compose up -d` | Start all services, detached | How you start things in production |
+| `docker compose up -d` | Start all services, detached | How you start things in production |
 
 ---
 
 ## Common interview questions
 
 - *"Why use Docker for a data pipeline?"*
-  Answer: Reproducibility and portability. The pipeline runs identically in dev, staging, and production. No dependency conflicts. Rolling back is as simple as pointing to a previous image tag.
+  Answer: Reproducibility and portability. The pipeline runs identically in dev and production. No dependency conflicts. Rolling back is as simple as pointing to a previous image tag.
 
 - *"What is the difference between an image and a container?"*
   Answer: An image is the static blueprint. A container is the running instance. One image can run as many containers simultaneously.
 
-- *"How would you scale this if load increased 10x?"*
-  Answer: Increase Kafka partitions and consumer replicas. Swap LocalExecutor for CeleryExecutor in Airflow (multiple workers). Use Kubernetes (K8s) to auto-scale containers. This is the growth path from this project to enterprise-scale.
+- *"What is the difference between `docker compose up` and `docker run`?"*
+  Answer: `docker run` starts a single container. `docker compose up` reads a YAML file and starts all defined services together, with networking and dependencies handled automatically.
 
 ---
 
 ## Step 6.10 — Commit
 
 ```bash
-git add docker-compose.yml Dockerfile  # stage both new files for commit
-git commit -m "Add Docker Compose stack: Kafka + Postgres + Airflow fully containerised"  # save snapshot
+git add docker-compose.yml Dockerfile requirements.txt
+git commit -m "Guide 06: Docker Compose stack with Kafka, Postgres, Airflow; add Dockerfile and requirements.txt"
 ```
 
 ---
 
 ## Checkpoint
 
-You now have the full production-like stack running locally with one command.
+You now have:
+- The full stack (Kafka, Postgres, Airflow) running with one command
+- A `Dockerfile` that packages your Python pipeline portably
+- A `requirements.txt` that pins all Python dependencies
+- Understanding of images, containers, volumes, networks, and healthchecks
 
 ---
 
 ## Git Checkpoint — End of Guide 06
 
-- This is the full Git workflow you do at the end of every guide
-- In a real office this is called "raising a PR (Pull Request)"
-- You will do this 13 times — by the third time it feels automatic
-
----
-
 ### Step G3 — Check what changed
 
 ```bash
-git status  # show modified files (red) and untracked files (red)
+git status
 ```
 **What to look for:**
-- Files listed in red under "Changes not staged for commit" — these are files you modified
-- Files in red under "Untracked files" — these are new files Git has never seen before
-- Nothing should be green yet — you have not staged anything
+- `docker-compose.yml`, `Dockerfile`, `requirements.txt` listed as new or modified files
 
-**In an office:**
-- Before staging anything, always read `git status` first
-- It shows you exactly what you are about to commit
-- Committing blindly is how secrets (passwords, API keys) accidentally get pushed to GitHub
-
----
-
-### Step G4 — Review your changes line by line
+### Step G4 — Review your changes
 
 ```bash
-git diff  # show exact lines added (+) and deleted (-) in every modified file
+git diff
 ```
-**What this shows:**
-- The exact lines you added (in green with `+`) and deleted (in red with `-`) in every modified file
-- This is your chance to review your own work before anyone else sees it
-
-**What to check:**
-- Did I accidentally leave a `print("test123")` debugging line?
-- Did I hardcode a password anywhere?
-- Does the change make sense — does it do what I intended?
-
-- Press `q` to exit the diff view
-
-**In an office:**
-- Senior engineers always do `git diff` before staging
-- It catches mistakes before they become commits
-
----
+Press `q` to exit.
 
 ### Step G5 — Stage your files
 
 ```bash
-git add docker-compose.yml  # stage this file (select it for the next commit)
-git add Dockerfile           # stage this file
+git add docker-compose.yml Dockerfile requirements.txt
 ```
-
-**What staging means:**
-- You are selecting which changes go into the next commit
-- Git has a two-step save: stage first, then commit
-- This lets you commit only specific files even if you changed many
-
 **Why not `git add .`?**
-- Using `.` adds every changed file including things you may not want — temporary files, `.env` files with passwords, large data files
-- Always add by name or pattern
-
----
+- Using `.` adds everything including data files and logs — always add by name
 
 ### Step G6 — Verify what is staged
 
 ```bash
-git diff --staged  # show only the changes you have staged (about to commit)
+git diff --staged
 ```
-**What this shows:**
-- The same line-by-line diff as before, but ONLY for files you just staged
-- This is your final review before the commit is permanent
-
-**The difference between `git diff` and `git diff --staged`:**
-- `git diff` → shows unstaged changes (what you changed but have NOT added yet)
-- `git diff --staged` → shows staged changes (what you HAVE added, about to commit)
-
 Press `q` to exit.
-
----
 
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"  # save staged changes permanently
+git commit -m "Guide 06: Docker Compose stack with Kafka, Postgres, Airflow; add Dockerfile and requirements.txt"
 ```
-**What a commit is:**
-- A permanent snapshot saved in Git's history
-- Every commit gets a unique ID (called a hash — a long string like `a3f9c2b`)
-- You can always return to this exact state
-
-**What makes a good commit message:**
-- Good: `"Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"`
-- Bad: `"done"`, `"update"`, `"changes"`
-- Rule: your future self reading this 3 months later should know exactly what changed without looking at the code
-
----
 
 ### Step G8 — Check your commit was saved
 
 ```bash
-git log --oneline  # --oneline = one line per commit; newest at top
+git log --oneline
 ```
-**What this shows:**
-- All commits on this branch, one line each
-- The most recent is at the top
-- You should see your new commit at the top of the list
-
-**What `--oneline` means:**
-- Show one line per commit instead of the full multi-line format
-- Makes it easy to scan history quickly
-
 Example output:
 ```
-g3d8e2f Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised
-f1b7c3d Guide 07: Kafka producer and consumer for real-time delivery event streaming
-9b2c3d1 Initial commit: project guides and README
+a1b2c3d Guide 06: Docker Compose stack with Kafka, Postgres, Airflow; add Dockerfile and requirements.txt
+d1a774d Guide 04: dbt project with staging, mart models and data quality tests
 ```
-
-**In an office:**
-- `git log --oneline` is one of the most used commands
-- It gives you the full history of the branch at a glance
-
----
 
 ### Step G9 — Push to GitHub
 
 ```bash
-git push -u origin feature/guide-06-docker  # -u = set upstream so future pushes just need 'git push'
+git push -u origin feature/guide-06-docker
 ```
-**What `git push` does:**
-- Uploads your local commits to GitHub
-- Until you push, your commit only exists on your laptop
 
-**What `-u` means:**
-- Sets the upstream — links your local branch to a branch of the same name on GitHub
-- You only need `-u` the first time you push a new branch
-- After that, just `git push` is enough
-
-**What `origin` means:**
-- The name of your GitHub remote
-- When you ran `git remote add origin ...` in Guide 00B, you named it `origin`
-- That name sticks
-
-- After pushing, go to your GitHub repository in the browser
-- You will see a yellow banner: **"feature/guide-06-docker had recent pushes"**
-
----
+After pushing, go to your GitHub repository in the browser. You will see a yellow banner: **"feature/guide-06-docker had recent pushes"**
 
 ### Step G10 — Raise a Pull Request on GitHub
 
-- A Pull Request (PR) is a formal request to merge your branch into another branch
-- You are asking: "I finished this work, please review it and bring it into develop."
+**PR title:** `Guide 06: Docker Compose stack — Kafka, Postgres, Airflow containerised`
 
-1. Click **Compare & pull request** in the yellow banner
-2. Check the top settings:
-   - **base:** `develop` ← where the code will go
-   - **compare:** `feature/guide-06-docker` ← what you are merging in
-3. Title: `Guide 06: Docker containerisation`
-4. Description: 1-2 lines about what this guide added
-5. Click **Create pull request**
-6. Click **Merge pull request** → **Confirm merge**
+**PR description:**
+```
+- Added docker-compose.yml: 7 services — Zookeeper, Kafka, kafka-setup, Postgres, airflow-init, airflow-webserver, airflow-scheduler
+- Added Dockerfile: Python 3.11-slim image for pipeline scripts
+- Added requirements.txt: pinned versions for all Python dependencies
+- Stack starts with: docker compose up -d
+- Runs in GitHub Codespaces (no admin rights needed on company laptop)
+```
 
-**In an office:**
-- A colleague would review your PR before approving
-- They would read your diff, leave comments, and you would discuss
-- Here you review and merge yourself — but the process is identical
-
-**Why not push directly to develop?**
-- In real teams, direct pushes to develop and main are blocked
-- Every change must go through a PR
-- This ensures someone always reviews code before it merges
-- You are building that exact habit
-
----
+Steps in GitHub:
+1. Click **Compare & pull request**
+2. Check: **base:** `develop` ← **compare:** `feature/guide-06-docker`
+3. Paste the title and description above
+4. Click **Create pull request**
+5. Click **Merge pull request** → **Confirm merge**
 
 ### Step G11 — Pull the merged changes back locally
 
 ```bash
-git checkout develop  # switch back to develop (no -b; branch already exists)
+git checkout develop
 ```
-- Switches you back to develop
-- No `-b` here — `develop` already exists, you are just switching to it
-
 ```bash
-git pull origin develop  # download the merged PR from GitHub into local develop
+git pull origin develop
 ```
-- Downloads the merged PR from GitHub into your local develop
-- Your local develop now has everything from the feature branch you just merged
-
-**What each part means:**
-- `origin` — download from GitHub (the remote)
-- `develop` — specifically from the develop branch on GitHub
-- `pull` — download + merge in one step (it runs `git fetch` then `git merge` automatically)
-
 ```bash
-git log --oneline  # confirm your Guide 08 commit appears in develop's history
+git log --oneline
 ```
-- You should now see your Guide 08 commit in develop's history
-- Confirm it is there
-
-**What `--oneline` means:**
-- Show one line per commit instead of the full multi-line format
-
----
 
 ### Step G12 — Delete the feature branch
 
 ```bash
-git branch -d feature/guide-06-docker  # -d = delete local branch (safe; refuses if unmerged)
+git branch -d feature/guide-06-docker
 ```
-**What `-d` means:**
-- Delete the branch locally
-- Git will refuse to delete if the branch has unmerged commits — a safety guard
-- Since you just merged the PR, `-d` works
-
 ```bash
-git push origin --delete feature/guide-06-docker  # delete the branch on GitHub too
+git push origin --delete feature/guide-06-docker
 ```
-- Deletes the branch on GitHub too
-
-**What each part means:**
-- `origin` — push this action to GitHub (not just locally)
-- `--delete` — delete the named branch on GitHub
-
-**Why delete?**
-- Merged branches are dead branches
-- Keeping them clutters the repository
-- In real teams, merged branches are always deleted
-- A clean repo = a professional habit
-
-**Note — good point to also promote to main:**
-- You now have a fully working containerised stack
-- This is a meaningful milestone:
-```bash
-git checkout main          # switch to main branch
-git merge develop          # bring develop's commits into main
-git push origin main       # upload main to GitHub
-git checkout develop       # switch back to develop for next guide
-```
-
----
 
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-09-ml  # -b = create new branch AND switch to it
+git checkout -b feature/guide-07-airflow
 ```
-
-**What `-b` means:**
-- Creates a new branch AND switches to it in one command
-- Without `-b`, checkout only switches to an existing branch and would error if the branch does not exist
-
-- You are now on a fresh branch, ready for the next guide
 
 ---
 
 ### What your GitHub looks like after this
 
-- **Pull Requests tab** → one closed PR with your title and description
-- **develop branch → commits** → your Guide 08 commit is in the history
-- **Branches** → feature/guide-06-docker is gone (deleted)
+- **Pull Requests tab** → one closed PR: `Guide 06: Docker Compose stack — Kafka, Postgres, Airflow containerised`
+- **develop branch → commits** → your Guide 06 commit is in the history
+- **Branches** → `feature/guide-06-docker` is gone (deleted)
 
-- This is exactly what a professional Git history looks like
-
-**Next:** [GUIDE_09_ML.md](GUIDE_09_ML.md) — Build an ML (Machine Learning) model to predict delivery success
+**Next:** [GUIDE_07_AIRFLOW.md](GUIDE_07_AIRFLOW.md) — Schedule and monitor the pipeline with Apache Airflow
