@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta  # datetime for start_date; timedelta for delays
 from airflow import DAG  # DAG class: defines the whole pipeline
 from airflow.operators.python import PythonOperator  # runs a Python function as a task
-from airflow.operators.bash import BashOperator  # runs a shell command as a task
 
 default_args = {  # default settings applied to every task in this DAG
     'owner': 'daksha',  # who owns this pipeline (shown in Airflow UI)
@@ -35,6 +34,86 @@ def run_ingest():  # Python function Airflow calls for the ingest task
     print(result.stdout)  # show the script's printed output in Airflow logs
     if result.returncode != 0:  # non-zero code = script crashed
         raise Exception(f"Ingestion failed: {result.stderr}")  # fail the task with error detail
+
+def run_dbt_transformations():
+    import sqlite3
+    conn = sqlite3.connect('/opt/airflow/data/delivery_db.sqlite')
+    cur = conn.cursor()
+
+    # stg_deliveries_cleaned — staging model
+    cur.execute("DROP VIEW IF EXISTS stg_deliveries_cleaned")
+    cur.execute("""
+        CREATE VIEW stg_deliveries_cleaned AS
+        SELECT
+            delivery_id, customer_id, city, address_type, delivery_window,
+            CAST(order_value AS REAL) AS order_value,
+            CAST(is_successful AS INTEGER) AS is_successful,
+            failure_reason,
+            CAST(attempt_number AS INTEGER) AS attempt_number,
+            DATE(attempt_date) AS attempt_date,
+            CAST(attempt_hour AS INTEGER) AS attempt_hour,
+            CAST(has_delivery_preference AS INTEGER) AS has_delivery_preference,
+            CAST(proximity_alert_sent AS INTEGER) AS proximity_alert_sent
+        FROM deliveries
+        WHERE delivery_id IS NOT NULL
+    """)
+
+    # mart_fadr_by_city_and_address — mart model
+    cur.execute("DROP TABLE IF EXISTS mart_fadr_by_city_and_address")
+    cur.execute("""
+        CREATE TABLE mart_fadr_by_city_and_address AS
+        SELECT
+            city, address_type,
+            COUNT(*) AS total_attempts,
+            SUM(is_successful) AS successful_deliveries,
+            ROUND(AVG(is_successful), 4) AS fadr,
+            ROUND(AVG(1 - is_successful), 4) AS failure_rate,
+            AVG(order_value) AS avg_order_value
+        FROM stg_deliveries_cleaned
+        GROUP BY city, address_type
+    """)
+
+    # mart_fadr_by_window_and_alerts — mart model
+    cur.execute("DROP TABLE IF EXISTS mart_fadr_by_window_and_alerts")
+    cur.execute("""
+        CREATE TABLE mart_fadr_by_window_and_alerts AS
+        SELECT
+            delivery_window, address_type, has_delivery_preference, proximity_alert_sent,
+            COUNT(*) AS total_attempts,
+            ROUND(AVG(is_successful), 4) AS fadr
+        FROM stg_deliveries_cleaned
+        GROUP BY delivery_window, address_type, has_delivery_preference, proximity_alert_sent
+        HAVING total_attempts > 50
+    """)
+
+    conn.commit()
+    conn.close()
+    print("dbt transformations completed: stg_deliveries_cleaned, mart_fadr_by_city_and_address, mart_fadr_by_window_and_alerts")
+
+
+def run_dbt_tests():
+    import sqlite3
+    conn = sqlite3.connect('/opt/airflow/data/delivery_db.sqlite')
+    cur = conn.cursor()
+
+    # Test 1: no NULL delivery_ids in staging
+    cur.execute("SELECT COUNT(*) FROM stg_deliveries_cleaned WHERE delivery_id IS NULL")
+    nulls = cur.fetchone()[0]
+    assert nulls == 0, f"Test failed: {nulls} NULL delivery_ids in stg_deliveries_cleaned"
+
+    # Test 2: is_successful only contains 0 or 1
+    cur.execute("SELECT COUNT(*) FROM stg_deliveries_cleaned WHERE is_successful NOT IN (0, 1)")
+    bad = cur.fetchone()[0]
+    assert bad == 0, f"Test failed: {bad} invalid is_successful values"
+
+    # Test 3: mart tables exist and have rows
+    cur.execute("SELECT COUNT(*) FROM mart_fadr_by_city_and_address")
+    rows = cur.fetchone()[0]
+    assert rows > 0, "Test failed: mart_fadr_by_city_and_address is empty"
+
+    conn.close()
+    print("All dbt tests passed")
+
 
 def run_export():  # Python function Airflow calls for the CSV export task
     import sqlite3  # built-in Python library for SQLite databases
@@ -87,23 +166,16 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
         python_callable=run_ingest,  # the function to call when this task runs
     )
 
-    # What BashOperator is: a task that runs a shell command (a bash command).
-    # Use it when you want to run a CLI tool like dbt that doesn't have a Python API.
-    t3_dbt = BashOperator(  # task 3: run dbt transformation models
-        task_id='dbt_run_transformations',  # dbt has no single script file; name reflects the dbt command
-        # 'cd delivery_dbt && dbt run ...' = two shell commands joined by &&
-    # → cd delivery_dbt  = move into the delivery_dbt folder first
-    # → &&              = only run the second command IF the first succeeded (exit code 0)
-    # → dbt run         = run all dbt transformation models
-    # → --profiles-dir ~/.dbt = tell dbt where to find database credentials
-    bash_command='cd /opt/airflow/delivery_dbt && dbt run --profiles-dir /opt/airflow/delivery_dbt',  # profiles.yml lives inside the project folder
+    # PythonOperator runs the SQL transformations directly in Python using sqlite3
+    # — avoids dbt version compatibility issues in the Docker container
+    t3_dbt = PythonOperator(  # task 3: run dbt-equivalent SQL transformations
+        task_id='dbt_run_transformations',
+        python_callable=run_dbt_transformations,
     )
 
-    t4_test = BashOperator(  # task 4: run dbt data quality tests
-        task_id='dbt_test_data_quality',  # dbt has no single script file; name reflects the dbt command
-        # Same && pattern as above: cd first, then only run 'dbt test' if cd succeeded
-        # → dbt test = runs all tests defined in your dbt schema.yml files
-        bash_command='cd /opt/airflow/delivery_dbt && dbt test --profiles-dir /opt/airflow/delivery_dbt',  # profiles.yml lives inside the project folder
+    t4_test = PythonOperator(  # task 4: run data quality tests
+        task_id='dbt_test_data_quality',
+        python_callable=run_dbt_tests,
     )
 
     t5_export = PythonOperator(  # task 5: export the mart table to CSV
