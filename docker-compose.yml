@@ -33,12 +33,11 @@ services:
     networks: [delivery-net]
     depends_on: [kafka]
     entrypoint: /bin/bash
-    command: -c "
-      echo 'Waiting for Kafka...' &&
+    command: >-
+      -c "echo 'Waiting for Kafka...' &&
       cub kafka-ready -b kafka:9092 1 30 &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic delivery-events --partitions 3 --replication-factor 1 &&
-      echo 'Topic created.'
-    "
+      echo 'Topic created.'"
 
   # ── Postgres ──────────────────────────────────────────────────────────────
   # → Airflow stores its metadata (DAG runs, task states) in this database
