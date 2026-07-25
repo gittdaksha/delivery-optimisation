@@ -1,3 +1,3 @@
-{% macro ref() %}
-  {{ return(builtins.ref(*varargs, **kwargs)) }}
+{% macro ref(model_name, version=None) %}
+  {{ return(builtins.ref(model_name, version=version)) }}
 {% endmacro %}
