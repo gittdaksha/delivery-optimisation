@@ -11,36 +11,64 @@
 **In Codespaces terminal:**
 
 ```bash
-# Step 1 — switch to your feature branch
 git checkout develop
 git pull origin develop
 git checkout -b feature/guide-08-kafka
 ```
+**What this does:**
+- `git checkout develop` — switches you to the develop branch first
+- `git pull origin develop` — downloads the latest changes from GitHub so you are not working on stale code
+- `git checkout -b feature/guide-08-kafka` — creates a new branch for this guide's work
+- `-b` = create AND switch in one command; without it Git would error because the branch does not exist yet
+- You always create feature branches FROM develop — never from main, never from another feature branch
 
 ```bash
-# Step 2 — start all containers
 docker compose up -d
 ```
+**What this does:**
+- Reads `docker-compose.yml` and starts all 7 services: Zookeeper, Kafka, kafka-setup, Postgres, airflow-init, airflow-webserver, airflow-scheduler
+- `-d` = detached mode: containers run in the background and you get your terminal back immediately
+- Without `-d` your terminal would be locked showing all logs and closing it would stop all containers
 
 ```bash
-# Step 3 — wait 2 minutes, then verify all containers are running
 docker ps
 ```
-- You should see: `zookeeper`, `kafka`, `kafka-setup` (Exited 0), `postgres`, `airflow-init` (Exited 0), `airflow-webserver`, `airflow-scheduler`
+**What this does:**
+- Lists every running container and its status
+- What you should see:
+  - `zookeeper` — Up
+  - `kafka` — Up, port 9092 mapped
+  - `kafka-setup` — Exited (0) — correct, it ran once to create the topic then stopped
+  - `postgres` — Up (healthy)
+  - `airflow-init` — Exited (0) — correct, it ran once to set up the database then stopped
+  - `airflow-webserver` — Up
+  - `airflow-scheduler` — Up
+- If kafka is not in the list, wait 1 more minute and run `docker ps` again
 
 ```bash
-# Step 4 — verify the delivery-events topic was created
 docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
-- You should see `delivery-events` in the output
+**What this does:**
+- `docker exec kafka` — run a command inside the running `kafka` container
+- `kafka-topics --list` — list all topics that exist on this Kafka broker
+- `--bootstrap-server localhost:9092` — the address of the Kafka broker to connect to
+- You should see `delivery-events` in the output — this was created by the `kafka-setup` container on startup
+- If you see nothing, the kafka-setup container may have failed — check with `docker logs kafka-setup`
 
 ```bash
-# Step 5 — install the Kafka Python library
 pip install kafka-python==2.0.2
 ```
+**What this does:**
+- Installs the Python library for Kafka in your Codespaces environment
+- `kafka-python` lets you write producers (scripts that publish messages) and consumers (scripts that read messages) in Python
+- Version `2.0.2` is pinned — later versions have known compatibility issues with this setup
+- This installs in Codespaces, not inside the Docker containers — your Python scripts run in Codespaces and connect to the Kafka container via port 9092
 
 ```bash
 # Step 6 — create the producer script
+# cat > filename << 'ENDOFFILE' ... ENDOFFILE is a heredoc — it writes everything
+# between the two ENDOFFILE markers directly into the file in one command.
+# Use this instead of opening a text editor.
 cat > src/kafka_producer.py << 'ENDOFFILE'
 import json
 import time
@@ -162,28 +190,87 @@ except KeyboardInterrupt:
 ENDOFFILE
 ```
 
+**Step 8 — open a second terminal and run producer and consumer side by side**
+
+In Codespaces: click the **+** icon in the terminal panel to open a second terminal.
+In VS Code desktop: press **Ctrl+Shift+`** to open a new terminal.
+
+You now have two terminals. Keep them side by side.
+
+**Terminal 1 — start the producer:**
 ```bash
-# Step 8 — open a second terminal (click + in the terminal panel)
-# In Terminal 1 run the producer:
 python src/kafka_producer.py
 ```
+**What you will see:**
+- One line printed every 0.5 seconds — city, address type, and delivery status
+- `✓` = DELIVERED, `✗` = FAILED or RESCHEDULED, `→` = in-progress status
+- This simulates a delivery partner's app sending status updates in real time
 
+**Terminal 2 — start the consumer:**
 ```bash
-# In Terminal 2 run the consumer:
 python src/kafka_consumer.py
 ```
+**What you will see:**
+- The consumer reads every event the producer publishes
+- Every 10 events it prints a live FADR percentage — the percentage of terminal events (DELIVERED/FAILED/RESCHEDULED) that were successful
+- Each event is also written to `data/delivery_db.sqlite` in the `delivery_events_stream` table
 
-- Watch events flow in Terminal 1 and FADR print in Terminal 2
-- Press Ctrl+C in both terminals to stop after ~30 seconds
+**Why two terminals:**
+- Producer and consumer run at the same time but independently
+- This is exactly how a real system works — the delivery app (producer) runs on the partner's phone, the analytics system (consumer) runs on a server — they never talk to each other directly, only through Kafka
+
+**To stop:** Press `Ctrl+C` in Terminal 1 first, then `Ctrl+C` in Terminal 2.
 
 ```bash
-# Step 9 — commit and push
+# Step 9 — stage, commit and push
 git add src/kafka_producer.py src/kafka_consumer.py
 git commit -m "Guide 08: Kafka producer and consumer for real-time delivery event streaming"
 git push -u origin feature/guide-08-kafka
 ```
+**What this does:**
+- `git add` — stages both new files for the commit
+- `git commit` — saves a permanent snapshot with a descriptive message
+- `git push -u origin feature/guide-08-kafka` — uploads the branch to GitHub for the first time
+- `-u` sets the upstream link so future pushes on this branch only need `git push`
 
-Then go to GitHub, raise the PR, merge it, and you are done with Guide 08.
+**Step 10 — raise the PR on GitHub**
+
+- Go to your GitHub repository in the browser
+- You will see a yellow banner: **"feature/guide-08-kafka had recent pushes"**
+- Click **Compare & pull request**
+- Check: **base:** `develop` ← **compare:** `feature/guide-08-kafka`
+- Title: `Guide 08: Kafka real-time delivery event streaming`
+- Description:
+```
+- Added src/kafka_producer.py — publishes fake delivery events to Kafka at 2/sec
+- Added src/kafka_consumer.py — reads from Kafka, stores events in SQLite, prints live FADR
+- Kafka running via docker-compose.yml (zookeeper + kafka + kafka-setup)
+- delivery-events topic with 3 partitions, keyed by city
+```
+- Click **Create pull request** → **Merge pull request** → **Confirm merge**
+
+**Step 11 — pull merged changes and clean up**
+
+```bash
+git checkout develop
+git pull origin develop
+git branch -d feature/guide-08-kafka
+git push origin --delete feature/guide-08-kafka
+```
+**What this does:**
+- `git checkout develop` — switches back to develop
+- `git pull origin develop` — brings the merged PR down to your local machine
+- `git branch -d feature/guide-08-kafka` — deletes the branch locally (safe — it is already merged)
+- `git push origin --delete feature/guide-08-kafka` — deletes the branch on GitHub too
+- Merged branches are always deleted — a clean repo is a professional habit
+
+**Step 12 — create the next guide's branch**
+
+```bash
+git checkout -b feature/guide-09-ml
+```
+
+You are now on a fresh branch, ready for Guide 09.
 
 ---
 
