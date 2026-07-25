@@ -78,19 +78,19 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
     # What PythonOperator is: a task that runs a Python function you define.
     # You pass python_callable=your_function and Airflow calls it when the task executes.
     t1_generate = PythonOperator(  # task 1: generate raw delivery data
-        task_id='generate_raw_data',  # unique name for this task in Airflow UI
+        task_id='generate_data_py',  # matches src/generate_data.py
         python_callable=run_generate,  # the function to call when this task runs
     )
 
     t2_ingest = PythonOperator(  # task 2: ingest data to SQLite database
-        task_id='ingest_to_database',  # unique name for this task in Airflow UI
+        task_id='ingest_py',  # matches src/ingest.py
         python_callable=run_ingest,  # the function to call when this task runs
     )
 
     # What BashOperator is: a task that runs a shell command (a bash command).
     # Use it when you want to run a CLI tool like dbt that doesn't have a Python API.
     t3_dbt = BashOperator(  # task 3: run dbt transformation models
-        task_id='run_dbt_transformations',  # unique name for this task in Airflow UI
+        task_id='dbt_run_transformations',  # dbt has no single script file; name reflects the dbt command
         # 'cd delivery_dbt && dbt run ...' = two shell commands joined by &&
     # → cd delivery_dbt  = move into the delivery_dbt folder first
     # → &&              = only run the second command IF the first succeeded (exit code 0)
@@ -100,14 +100,14 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
     )
 
     t4_test = BashOperator(  # task 4: run dbt data quality tests
-        task_id='run_dbt_tests',  # unique name for this task in Airflow UI
+        task_id='dbt_test_data_quality',  # dbt has no single script file; name reflects the dbt command
         # Same && pattern as above: cd first, then only run 'dbt test' if cd succeeded
         # → dbt test = runs all tests defined in your dbt schema.yml files
         bash_command='cd delivery_dbt && dbt test --profiles-dir ~/.dbt',  # cd to dbt dir, then test data quality
     )
 
     t5_export = PythonOperator(  # task 5: export the mart table to CSV
-        task_id='export_mart_to_csv',  # unique name for this task in Airflow UI
+        task_id='export_mart_py',  # matches src/export_mart.py (runs inline export function)
         python_callable=run_export,  # the function to call when this task runs
     )
 
