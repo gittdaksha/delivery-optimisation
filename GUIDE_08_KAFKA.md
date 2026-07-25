@@ -56,12 +56,13 @@ docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 - If you see nothing, the kafka-setup container may have failed — check with `docker logs kafka-setup`
 
 ```bash
-pip install kafka-python==2.0.2
+pip install kafka-python-ng
 ```
 **What this does:**
 - Installs the Python library for Kafka in your Codespaces environment
-- `kafka-python` lets you write producers (scripts that publish messages) and consumers (scripts that read messages) in Python
-- Version `2.0.2` is pinned — later versions have known compatibility issues with this setup
+- `kafka-python-ng` is the maintained fork of `kafka-python` — it supports Python 3.12 which is what Codespaces uses
+- The original `kafka-python==2.0.2` has a bug with Python 3.12 (`kafka.vendor.six.moves` missing) — `kafka-python-ng` fixes this
+- The import in your scripts stays exactly the same: `from kafka import KafkaProducer` / `from kafka import KafkaConsumer`
 - This installs in Codespaces, not inside the Docker containers — your Python scripts run in Codespaces and connect to the Kafka container via port 9092
 
 **Step 6 — create `src/kafka_producer.py`**
