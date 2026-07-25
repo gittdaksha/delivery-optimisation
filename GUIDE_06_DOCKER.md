@@ -1,4 +1,4 @@
-# Guide 08 — Containerise Everything with Docker
+# Guide 06 — Containerise Everything with Docker
 
 **Goal:** Package the entire pipeline — Kafka, the Python scripts, and Airflow — into Docker containers using Docker Compose. This is how real data pipelines are deployed in production.
 
@@ -80,7 +80,7 @@ git status  # show all changed and untracked files
 ### Step G2 — Create your feature branch
 
 ```bash
-git checkout -b feature/guide-08-docker  # -b = create new branch AND switch to it
+git checkout -b feature/guide-06-docker  # -b = create new branch AND switch to it
 ```
 **What `-b` means:**
 - Create a new branch AND switch to it in one command
@@ -100,7 +100,7 @@ git branch  # list all branches; * marks the one you are on
 
 ---
 
-## Step 11.1 — Install Docker
+## Step 6.1 — Install Docker
 
 Download Docker Desktop from https://www.docker.com/products/docker-desktop/
 
@@ -112,7 +112,7 @@ docker-compose --version  # print the installed Compose version
 
 ---
 
-## Step 11.2 — Create `docker-compose.yml`
+## Step 6.2 — Create `docker-compose.yml`
 
 Create the file `docker-compose.yml` in the project root:
 
@@ -306,7 +306,7 @@ services:
 
 ---
 
-## Step 11.3 — Create `Dockerfile` for the Python pipeline
+## Step 6.3 — Create `Dockerfile` for the Python pipeline
 
 Create the file `Dockerfile` in the project root:
 
@@ -341,7 +341,7 @@ CMD ["python", "src/generate_data.py"]  # default command when container starts
 
 ---
 
-## Step 11.4 — Start the full stack
+## Step 6.4 — Start the full stack
 
 **What this does:** Starts all services defined in `docker-compose.yml` simultaneously.
 
@@ -360,7 +360,7 @@ docker-compose up -d  # -d = detached; runs in background, returns terminal to y
 
 ---
 
-## Step 11.5 — Check all containers are running
+## Step 6.5 — Check all containers are running
 
 **What `docker-compose ps` does:**
 - Lists all containers defined in your `docker-compose.yml` along with their current status (running, stopped, healthy)
@@ -374,7 +374,7 @@ You should see all 6 containers with status `Up` or `healthy`.
 
 ---
 
-## Step 11.6 — Watch logs
+## Step 6.6 — Watch logs
 
 **What `docker-compose logs -f` does:**
 - Streams the live log output from a container to your terminal
@@ -389,7 +389,7 @@ docker-compose logs -f airflow-webserver  # watch webserver logs in real time
 
 ---
 
-## Step 11.7 — Open Airflow UI
+## Step 6.7 — Open Airflow UI
 
 Go to `http://localhost:8080`
 - Username: `admin`
@@ -400,7 +400,7 @@ Go to `http://localhost:8080`
 
 ---
 
-## Step 11.8 — Stop everything
+## Step 6.8 — Stop everything
 
 ```bash
 docker-compose down  # stop and remove all containers (volumes are kept)
@@ -412,7 +412,7 @@ docker-compose down  # stop and remove all containers (volumes are kept)
 
 ---
 
-## Step 11.9 — Key Docker concepts for interviews
+## Step 6.9 — Key Docker concepts for interviews
 
 | Concept | What it is | Why it matters |
 |---|---|---|
@@ -439,7 +439,7 @@ docker-compose down  # stop and remove all containers (volumes are kept)
 
 ---
 
-## Step 11.10 — Commit
+## Step 6.10 — Commit
 
 ```bash
 git add docker-compose.yml Dockerfile  # stage both new files for commit
@@ -454,7 +454,7 @@ You now have the full production-like stack running locally with one command.
 
 ---
 
-## Git Checkpoint — End of Guide 08
+## Git Checkpoint — End of Guide 06
 
 - This is the full Git workflow you do at the end of every guide
 - In a real office this is called "raising a PR (Pull Request)"
@@ -539,7 +539,7 @@ Press `q` to exit.
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 08: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"  # save staged changes permanently
+git commit -m "Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"  # save staged changes permanently
 ```
 **What a commit is:**
 - A permanent snapshot saved in Git's history
@@ -547,7 +547,7 @@ git commit -m "Guide 08: Docker Compose stack — Kafka, Postgres, Airflow fully
 - You can always return to this exact state
 
 **What makes a good commit message:**
-- Good: `"Guide 08: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"`
+- Good: `"Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised"`
 - Bad: `"done"`, `"update"`, `"changes"`
 - Rule: your future self reading this 3 months later should know exactly what changed without looking at the code
 
@@ -569,7 +569,7 @@ git log --oneline  # --oneline = one line per commit; newest at top
 
 Example output:
 ```
-g3d8e2f Guide 08: Docker Compose stack — Kafka, Postgres, Airflow fully containerised
+g3d8e2f Guide 06: Docker Compose stack — Kafka, Postgres, Airflow fully containerised
 f1b7c3d Guide 07: Kafka producer and consumer for real-time delivery event streaming
 9b2c3d1 Initial commit: project guides and README
 ```
@@ -583,7 +583,7 @@ f1b7c3d Guide 07: Kafka producer and consumer for real-time delivery event strea
 ### Step G9 — Push to GitHub
 
 ```bash
-git push -u origin feature/guide-08-docker  # -u = set upstream so future pushes just need 'git push'
+git push -u origin feature/guide-06-docker  # -u = set upstream so future pushes just need 'git push'
 ```
 **What `git push` does:**
 - Uploads your local commits to GitHub
@@ -600,7 +600,7 @@ git push -u origin feature/guide-08-docker  # -u = set upstream so future pushes
 - That name sticks
 
 - After pushing, go to your GitHub repository in the browser
-- You will see a yellow banner: **"feature/guide-08-docker had recent pushes"**
+- You will see a yellow banner: **"feature/guide-06-docker had recent pushes"**
 
 ---
 
@@ -612,8 +612,8 @@ git push -u origin feature/guide-08-docker  # -u = set upstream so future pushes
 1. Click **Compare & pull request** in the yellow banner
 2. Check the top settings:
    - **base:** `develop` ← where the code will go
-   - **compare:** `feature/guide-08-docker` ← what you are merging in
-3. Title: `Guide 08: Docker containerisation`
+   - **compare:** `feature/guide-06-docker` ← what you are merging in
+3. Title: `Guide 06: Docker containerisation`
 4. Description: 1-2 lines about what this guide added
 5. Click **Create pull request**
 6. Click **Merge pull request** → **Confirm merge**
@@ -664,7 +664,7 @@ git log --oneline  # confirm your Guide 08 commit appears in develop's history
 ### Step G12 — Delete the feature branch
 
 ```bash
-git branch -d feature/guide-08-docker  # -d = delete local branch (safe; refuses if unmerged)
+git branch -d feature/guide-06-docker  # -d = delete local branch (safe; refuses if unmerged)
 ```
 **What `-d` means:**
 - Delete the branch locally
@@ -672,7 +672,7 @@ git branch -d feature/guide-08-docker  # -d = delete local branch (safe; refuses
 - Since you just merged the PR, `-d` works
 
 ```bash
-git push origin --delete feature/guide-08-docker  # delete the branch on GitHub too
+git push origin --delete feature/guide-06-docker  # delete the branch on GitHub too
 ```
 - Deletes the branch on GitHub too
 
@@ -716,7 +716,7 @@ git checkout -b feature/guide-09-ml  # -b = create new branch AND switch to it
 
 - **Pull Requests tab** → one closed PR with your title and description
 - **develop branch → commits** → your Guide 08 commit is in the history
-- **Branches** → feature/guide-08-docker is gone (deleted)
+- **Branches** → feature/guide-06-docker is gone (deleted)
 
 - This is exactly what a professional Git history looks like
 

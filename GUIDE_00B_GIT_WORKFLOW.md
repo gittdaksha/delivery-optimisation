@@ -1,5 +1,7 @@
 # Guide 00B — Git Workflow (How Real Teams Use Git)
 
+**Why this guide exists:** Every guide uses Git — branching, committing, pushing, raising PRs. This guide teaches you the full Git workflow once so you understand every command when it appears in later guides. Read this before Guide 01.
+
 - Read this fully before starting Guide 01.
 - Every command here is explained — not just what to type, but what it means and why it exists.
 - If you encounter any abbreviation or term you do not recognise, check [GUIDE_00C_GLOSSARY.md](GUIDE_00C_GLOSSARY.md) — every full form is listed there.
@@ -775,9 +777,9 @@ git commit -m "asdfgh"
 | Guide 03 | `feature/guide-03-sql` |
 | Guide 04 | `feature/guide-04-dbt` |
 | Guide 05 | `feature/guide-05-pyspark` |
-| Guide 06 | `feature/guide-06-airflow` |
-| Guide 07 | `feature/guide-07-kafka` |
-| Guide 08 | `feature/guide-08-docker` |
+| Guide 06 | `feature/guide-07-airflow` |
+| Guide 07 | `feature/guide-08-kafka` |
+| Guide 08 | `feature/guide-06-docker` |
 | Guide 09 | `feature/guide-09-ml` |
 | Guide 10 | `feature/guide-10-dashboard` |
 | Guide 11 | `feature/guide-11-bigquery` |

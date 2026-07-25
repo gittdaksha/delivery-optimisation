@@ -1,5 +1,7 @@
 # Guide 00 — What You Will Build and Why
 
+**Why this guide exists:** Read this before anything else. It gives you the full picture of what you are building, why each guide exists, and how they connect — so you never feel lost wondering "why am I doing this step."
+
 Read this before you start anything. It answers three questions:
 - What will I actually see when this is done?
 - What do I learn from each part?
@@ -96,9 +98,9 @@ Improvement from preferences + better window: +25.8 percentage points
 | 03 | 10 SQL (Structured Query Language) queries | Analytical SQL, GROUP BY, window functions | SQL is on 100% of DE job descriptions |
 | 04 | dbt (Data Build Tool) models + tests | Staging → facts → marts (Kimball), data quality testing | dbt is the standard transformation tool in modern data teams |
 | 05 | PySpark analysis | DataFrame API, window functions, Parquet, partition pruning | Spark is on 80%+ of DE job descriptions |
-| 06 | Airflow DAG | Scheduling, task dependencies, retries, monitoring | Airflow is on 75%+ of DE job descriptions |
-| 07 | Kafka producer + consumer | Topics, partitions, offsets, consumer groups, real-time streams | Kafka is on 70%+ of DE job descriptions |
-| 08 | Docker Compose stack | Containers, images, volumes, multi-service orchestration | Docker is on 85%+ of DE job descriptions |
+| 06 | Docker Compose stack | Containers, images, volumes, multi-service orchestration | Docker is on 85%+ of DE job descriptions |
+| 07 | Airflow DAG | Scheduling, task dependencies, retries, monitoring | Airflow is on 75%+ of DE job descriptions |
+| 08 | Kafka producer + consumer | Topics, partitions, offsets, consumer groups, real-time streams | Kafka is on 70%+ of DE job descriptions |
 | 09 | Random Forest ML (Machine Learning) model | Feature engineering, train/test split, ROC-AUC, feature importance | Adds data science depth to the engineering story |
 | 10 | Streamlit dashboard | Interactive web apps, visualisation, business impact framing | Makes results visible to non-technical stakeholders |
 | 11 | BigQuery + GCS (Google Cloud Storage) + Pub/Sub | GCP (Google Cloud Platform) data warehouse, ELT (Extract, Load, Transform) pattern, BQ optimisation, managed streaming | GCP stack is on most cloud-native DE job descriptions |

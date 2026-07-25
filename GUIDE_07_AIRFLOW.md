@@ -1,4 +1,4 @@
-# Guide 06 — Pipeline Orchestration with Apache Airflow
+# Guide 07 — Pipeline Orchestration with Apache Airflow
 
 **Goal:** Use Apache Airflow to schedule and monitor the full pipeline: generate data → ingest → transform → export. Airflow is the most widely used orchestration tool in data engineering.
 
@@ -81,7 +81,7 @@ No flags here — `git status` always shows full current state.
 ### Step G2 — Create your feature branch
 
 ```bash
-git checkout -b feature/guide-06-airflow  # -b = create new branch and switch to it
+git checkout -b feature/guide-07-airflow  # -b = create new branch and switch to it
 ```
 **What `-b` means:**
 - Create a new branch AND switch to it in one command
@@ -98,6 +98,51 @@ git branch  # list all branches; * marks current branch
 ```
 - You will see a `*` next to your current branch
 - That `*` means "you are here"
+
+---
+
+## Step 5.0 — Windows only: Install WSL2 before running Airflow
+
+- Airflow does not run on Windows natively — it requires a Linux environment
+- WSL2 (Windows Subsystem for Linux 2) gives you a real Linux terminal inside Windows — free and built into Windows 11
+- You only need to do this once
+
+**Step 1 — Open PowerShell as Administrator**
+- Press the Windows key
+- Type `PowerShell`
+- Right-click it and select "Run as administrator"
+
+**Step 2 — Install WSL2**
+```powershell
+wsl --install
+```
+- This installs WSL2 and Ubuntu (a Linux distribution) automatically
+- It will ask you to restart your computer — do it
+
+**Step 3 — After restart, Ubuntu opens automatically**
+- It will ask you to create a Linux username and password
+- Use a simple username (e.g. `daksha`) and a password you will remember
+- This is separate from your Windows login
+
+**Step 4 — Open Ubuntu from the Start menu from now on**
+- Search "Ubuntu" in the Start menu and open it
+- You now have a Linux terminal on your Windows machine
+
+**Step 5 — Inside Ubuntu, navigate to your project**
+```bash
+cd "/mnt/c/Users/DakshaKurhade/OneDrive - AIR INDIA LIMITED/Desktop/Delivery Optimisation"
+```
+- WSL2 mounts your Windows drives under `/mnt/c/`
+- Your project folder is accessible from inside Linux via this path
+
+**Step 6 — Create and activate a virtual environment inside WSL2**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install apache-airflow
+```
+
+**Step 7 — Continue all Airflow steps below from inside the Ubuntu terminal**
 
 ---
 
@@ -274,7 +319,8 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
 ## Step 5.3 — Copy the DAG to Airflow's DAGs folder
 
 ```bash
-cp dags/delivery_pipeline.py airflow_home/dags/  # copy DAG file into Airflow's dags folder
+mkdir -p airflow_home/dags
+cp dags/delivery_pipeline.py airflow_home/dags/
 ```
 
 ---
@@ -482,7 +528,7 @@ d9a3b1f Guide 05: PySpark analysis with window functions, feature engineering, P
 ### Step G9 — Push to GitHub
 
 ```bash
-git push -u origin feature/guide-06-airflow  # -u = set upstream; push branch to GitHub
+git push -u origin feature/guide-07-airflow  # -u = set upstream; push branch to GitHub
 ```
 **What `git push` does:**
 - Uploads your local commits to GitHub
@@ -499,7 +545,7 @@ git push -u origin feature/guide-06-airflow  # -u = set upstream; push branch to
 - That name sticks
 
 - After pushing, go to your GitHub repository in the browser
-- You will see a yellow banner: **"feature/guide-06-airflow had recent pushes"**
+- You will see a yellow banner: **"feature/guide-07-airflow had recent pushes"**
 
 ---
 
@@ -511,7 +557,7 @@ git push -u origin feature/guide-06-airflow  # -u = set upstream; push branch to
 1. Click **Compare & pull request** in the yellow banner
 2. Check the top settings:
    - **base:** `develop` ← where the code will go
-   - **compare:** `feature/guide-06-airflow` ← what you are merging in
+   - **compare:** `feature/guide-07-airflow` ← what you are merging in
 3. Title: `Guide 06: Airflow pipeline orchestration`
 4. Description: 1-2 lines about what this guide added
 5. Click **Create pull request**
@@ -562,7 +608,7 @@ git log --oneline  # confirm Guide 06 commit appears in develop history
 ### Step G12 — Delete the feature branch
 
 ```bash
-git branch -d feature/guide-06-airflow  # -d = delete locally (safe: refuses if unmerged)
+git branch -d feature/guide-07-airflow  # -d = delete locally (safe: refuses if unmerged)
 ```
 **What `-d` means:**
 - Delete the branch locally
@@ -570,7 +616,7 @@ git branch -d feature/guide-06-airflow  # -d = delete locally (safe: refuses if 
 - Since you just merged the PR, `-d` works
 
 ```bash
-git push origin --delete feature/guide-06-airflow  # delete the branch on GitHub too
+git push origin --delete feature/guide-07-airflow  # delete the branch on GitHub too
 ```
 Deletes the branch on GitHub too.
 
@@ -589,7 +635,7 @@ Deletes the branch on GitHub too.
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-07-kafka  # -b = create new branch and switch to it
+git checkout -b feature/guide-08-kafka  # -b = create new branch and switch to it
 ```
 
 **What `-b` means:**
@@ -604,7 +650,7 @@ You are now on a fresh branch, ready for the next guide.
 
 - **Pull Requests tab** → one closed PR with your title and description
 - **develop branch → commits** → your Guide 06 commit is in the history
-- **Branches** → feature/guide-06-airflow is gone (deleted)
+- **Branches** → feature/guide-07-airflow is gone (deleted)
 
 This is exactly what a professional Git history looks like.
 

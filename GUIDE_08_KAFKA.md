@@ -1,6 +1,8 @@
-# Guide 07 — Real-Time Delivery Events with Apache Kafka
+# Guide 08 — Real-Time Delivery Events with Apache Kafka
 
 **Goal:** Simulate a real-time stream of delivery status events using Apache Kafka. Understand producers, consumers, and topics — then consume that stream with PySpark Structured Streaming.
+
+**Why this guide exists:** All the previous guides process data in batches — run a script, process 50,000 rows, done. Kafka handles real-time data — events arriving continuously, like a delivery status updating every second. This is how companies like Swiggy and Zomato track live delivery status. It is a separate skill from batch processing and appears on senior DE job descriptions.
 
 ---
 
@@ -79,7 +81,7 @@ git status  # show current working tree state
 ### Step G2 — Create your feature branch
 
 ```bash
-git checkout -b feature/guide-07-kafka  # -b = create new branch and switch to it
+git checkout -b feature/guide-08-kafka  # -b = create new branch and switch to it
 ```
 **What `-b` means:**
 - Create a new branch AND switch to it in one command
@@ -604,7 +606,7 @@ e2c5a9b Guide 06: Airflow DAG orchestrating 5-task delivery pipeline with daily 
 ### Step G9 — Push to GitHub
 
 ```bash
-git push -u origin feature/guide-07-kafka  # -u = set upstream; push branch to GitHub
+git push -u origin feature/guide-08-kafka  # -u = set upstream; push branch to GitHub
 ```
 **What `git push` does:**
 - Uploads your local commits to GitHub
@@ -621,7 +623,7 @@ git push -u origin feature/guide-07-kafka  # -u = set upstream; push branch to G
 - That name sticks
 
 - After pushing, go to your GitHub repository in the browser
-- You will see a yellow banner: **"feature/guide-07-kafka had recent pushes"**
+- You will see a yellow banner: **"feature/guide-08-kafka had recent pushes"**
 
 ---
 
@@ -633,7 +635,7 @@ git push -u origin feature/guide-07-kafka  # -u = set upstream; push branch to G
 1. Click **Compare & pull request** in the yellow banner
 2. Check the top settings:
    - **base:** `develop` ← where the code will go
-   - **compare:** `feature/guide-07-kafka` ← what you are merging in
+   - **compare:** `feature/guide-08-kafka` ← what you are merging in
 3. Title: `Guide 07: Kafka real-time event streaming`
 4. Description: 1-2 lines about what this guide added
 5. Click **Create pull request**
@@ -685,7 +687,7 @@ git log --oneline  # confirm Guide 07 commit appears in develop history
 ### Step G12 — Delete the feature branch
 
 ```bash
-git branch -d feature/guide-07-kafka  # -d = delete locally (safe: refuses if unmerged)
+git branch -d feature/guide-08-kafka  # -d = delete locally (safe: refuses if unmerged)
 ```
 **What `-d` means:**
 - Delete the branch locally
@@ -693,7 +695,7 @@ git branch -d feature/guide-07-kafka  # -d = delete locally (safe: refuses if un
 - Since you just merged the PR, `-d` works
 
 ```bash
-git push origin --delete feature/guide-07-kafka  # delete the branch on GitHub too
+git push origin --delete feature/guide-08-kafka  # delete the branch on GitHub too
 ```
 - Deletes the branch on GitHub too
 
@@ -712,7 +714,7 @@ git push origin --delete feature/guide-07-kafka  # delete the branch on GitHub t
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-08-docker  # -b = create new branch and switch to it
+git checkout -b feature/guide-06-docker  # -b = create new branch and switch to it
 ```
 
 **What `-b` means:**
@@ -727,7 +729,7 @@ git checkout -b feature/guide-08-docker  # -b = create new branch and switch to 
 
 - **Pull Requests tab** → one closed PR with your title and description
 - **develop branch → commits** → your Guide 07 commit is in the history
-- **Branches** → feature/guide-07-kafka is gone (deleted)
+- **Branches** → feature/guide-08-kafka is gone (deleted)
 
 - This is exactly what a professional Git history looks like
 

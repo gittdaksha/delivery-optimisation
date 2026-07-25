@@ -720,7 +720,7 @@ Deletes the branch on GitHub too.
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-06-airflow  # -b = create new branch and switch to it
+git checkout -b feature/guide-06-docker  # -b = create new branch and switch to it
 ```
 
 **What `-b` means:**
