@@ -1,6 +1,6 @@
 # Guide 07 — Pipeline Orchestration with Apache Airflow
 
-**Goal:** Use Apache Airflow to schedule and monitor the full pipeline: generate data → ingest → transform → export. Airflow is the most widely used orchestration tool in data engineering.
+**Goal:** Use Apache Airflow to schedule and monitor the full pipeline: generate data → ingest → transform → test data quality → export. Airflow is the most widely used orchestration tool in data engineering.
 
 ---
 
@@ -21,11 +21,11 @@
 
 **What a task is vs a DAG:**
 - A DAG is the whole pipeline
-- A task is one individual step inside that pipeline — for example "run the data generation script" is one task, "run dbt (Data Build Tool)" is another
+- A task is one individual step inside that pipeline — for example "run the data generation script" is one task, "run transformations" is another
 - Each task is a discrete, named, retryable unit of work
 
 A DAG is a pipeline definition. It has:
-- **Tasks**: individual steps (run a script, run SQL (Structured Query Language), call an API (Application Programming Interface))
+- **Tasks**: individual steps (run a script, run SQL, call an API)
 - **Dependencies**: which task must finish before the next one starts
 - **Schedule**: when to run (daily, hourly, on demand)
 - **No cycles**: tasks flow in one direction only — no loops
@@ -33,9 +33,7 @@ A DAG is a pipeline definition. It has:
 Your pipeline DAG looks like:
 
 ```
-generate_data → ingest_to_db → run_dbt_models → export_mart
-                                                      ↓
-                                              notify_complete
+generate_data_py → ingest_py → dbt_run_transformations → dbt_test_data_quality → export_mart_py
 ```
 
 ---
@@ -47,153 +45,297 @@ Every guide begins the same way in a real office: you make sure you are on the r
 ### Step G1 — Make sure you are on develop and it is current
 
 ```bash
-git checkout develop  # switch to the develop branch
+git checkout develop
 ```
 **What this does:**
 - Switches you to the develop branch
 - You always create feature branches FROM develop, never from main and never from another feature branch
-
 - No `-b` here — this switches to an existing branch
-- You do not use `-b` when the branch already exists
 
 ```bash
-git pull origin develop  # download + merge remote changes locally
+git pull origin develop
 ```
 **What this does:**
 - Downloads any changes from GitHub that you do not have locally
-- In an office, a colleague may have merged something since you last worked
 - `pull` = download + merge in one command
-
-**What each part means:**
 - `origin` — download from GitHub (the remote)
 - `develop` — specifically from the develop branch on GitHub
 
 ```bash
-git status  # show current working tree state
+git status
 ```
 **What this does:**
 - Shows the current state
 - You should see `On branch develop, nothing to commit, working tree clean`
-- If you see modified files here, deal with them before moving forward — do not carry unrelated changes into a new branch
-
-No flags here — `git status` always shows full current state.
 
 ### Step G2 — Create your feature branch
 
 ```bash
-git checkout -b feature/guide-07-airflow  # -b = create new branch and switch to it
+git checkout -b feature/guide-07-airflow
 ```
 **What `-b` means:**
 - Create a new branch AND switch to it in one command
 - Without `-b`, checkout only switches to an existing branch and would error if the branch does not exist
 
-**Why a new branch for every guide:**
-- Each branch is one unit of work
-- If something breaks, you can delete the branch and start fresh without affecting develop or main
-- In an office, each feature or fix lives on its own branch for the same reason
-
 Confirm you are on the right branch:
 ```bash
-git branch  # list all branches; * marks current branch
+git branch
 ```
 - You will see a `*` next to your current branch
-- That `*` means "you are here"
 
 ---
 
-## Step 5.0 — Windows only: Install WSL2 before running Airflow
+## Why Docker instead of local install
 
-- Airflow does not run on Windows natively — it requires a Linux environment
-- WSL2 (Windows Subsystem for Linux 2) gives you a real Linux terminal inside Windows — free and built into Windows 11
-- You only need to do this once
-
-**Step 1 — Open PowerShell as Administrator**
-- Press the Windows key
-- Type `PowerShell`
-- Right-click it and select "Run as administrator"
-
-**Step 2 — Install WSL2**
-```powershell
-wsl --install
-```
-- This installs WSL2 and Ubuntu (a Linux distribution) automatically
-- It will ask you to restart your computer — do it
-
-**Step 3 — After restart, Ubuntu opens automatically**
-- It will ask you to create a Linux username and password
-- Use a simple username (e.g. `daksha`) and a password you will remember
-- This is separate from your Windows login
-
-**Step 4 — Open Ubuntu from the Start menu from now on**
-- Search "Ubuntu" in the Start menu and open it
-- You now have a Linux terminal on your Windows machine
-
-**Step 5 — Inside Ubuntu, navigate to your project**
-```bash
-cd "/mnt/c/Users/DakshaKurhade/OneDrive - AIR INDIA LIMITED/Desktop/Delivery Optimisation"
-```
-- WSL2 mounts your Windows drives under `/mnt/c/`
-- Your project folder is accessible from inside Linux via this path
-
-**Step 6 — Create and activate a virtual environment inside WSL2**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install apache-airflow
-```
-
-**Step 7 — Continue all Airflow steps below from inside the Ubuntu terminal**
+- Airflow does not run on Windows natively — it requires Linux
+- WSL2 (Windows Subsystem for Linux) would normally solve this, but company laptops at Air India do not have admin rights to install WSL2
+- Docker packages Airflow and all its dependencies into containers — isolated Linux environments that run inside Docker Desktop
+- **GitHub Codespaces** is a cloud Linux machine you get free with GitHub — it runs Docker natively and solves the admin rights problem completely
+- All Airflow work in this guide runs in Codespaces, not on your local machine
 
 ---
 
-## Step 5.1 — Initialise Airflow
+## Step 7.0 — Open your project in GitHub Codespaces
 
-```bash
-export AIRFLOW_HOME=$(pwd)/airflow_home  # tell Airflow where to store all its files
-airflow db init  # create Airflow's tracking database and default config
-```
-
-**Why:**
-- Airflow needs its own database to track task runs, logs, and state
-- `airflow db init` creates it
-- `AIRFLOW_HOME` tells Airflow where to store everything
-
-On Windows (Command Prompt, NOT Git Bash):
-```cmd
-set AIRFLOW_HOME=%CD%\airflow_home  # Windows version: set Airflow folder path
-airflow db init  # create Airflow's tracking database and default config
-```
+- Go to your GitHub repository in the browser
+- Click the green **Code** button → **Codespaces** tab → **Create codespace on develop**
+- A VS Code window opens in the browser — this is a full Linux machine with Docker already installed
+- Your entire project folder is available inside it
 
 ---
 
-## Step 5.2 — Create `dags/delivery_pipeline.py`
+## Step 7.1 — Create `docker-compose.yml`
 
-Create the `dags/` folder first:
-```bash
-mkdir dags  # create the folder where Airflow looks for DAG files
+**What `docker-compose.yml` is:**
+- A configuration file that defines all the services (containers) your project needs
+- One file launches Zookeeper, Kafka, Postgres, Airflow Init, Airflow Webserver, and Airflow Scheduler all at once with `docker compose up`
+- Without it you would have to run 6+ separate `docker run` commands with many flags — impossible to remember
+
+**What `docker-compose.yml` does and why it exists:**
+- **What it does:** Defines 7 services, the network they share, and how they connect to each other
+- **Why separate:** Each service (Kafka, Airflow, Postgres) needs different environment variables, ports, and startup commands — keeping them in one file makes the whole stack reproducible on any machine
+- **Input:** Your local `dags/`, `src/`, `data/`, and `delivery_dbt/` folders (mounted into containers as volumes)
+- **Output:** Running containers accessible from your browser (Airflow on port 8080, Kafka on port 9092)
+
+Create the file `docker-compose.yml` in your project root:
+
+```yaml
+services:
+
+  # ── Zookeeper ─────────────────────────────────────────────────────────────
+  # → Kafka needs Zookeeper to coordinate its brokers (leader election, config)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    networks: [delivery-net]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181   # port Kafka uses to talk to Zookeeper
+      ZOOKEEPER_TICK_TIME: 2000     # heartbeat interval in milliseconds
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  # → the message broker: producers write to it, consumers read from it
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    networks: [delivery-net]
+    depends_on: [zookeeper]         # Kafka cannot start without Zookeeper
+    ports:
+      - "9092:9092"                 # external port so your Python scripts can connect
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181              # where to find Zookeeper
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092   # hostname other containers use
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1            # 1 broker = 1 replica is enough
+
+  # ── Kafka Setup ───────────────────────────────────────────────────────────
+  # → one-shot container that creates the Kafka topic then exits
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-setup
+    networks: [delivery-net]
+    depends_on: [kafka]
+    entrypoint: /bin/bash
+    command: >-
+      -c "echo 'Waiting for Kafka...' &&
+      cub kafka-ready -b kafka:9092 1 30 &&
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --topic delivery-events --partitions 3 --replication-factor 1 &&
+      echo 'Topic created.'"
+
+  # ── Postgres ──────────────────────────────────────────────────────────────
+  # → Airflow stores its metadata (DAG runs, task states) in this database
+  postgres:
+    image: postgres:15
+    container_name: airflow-postgres
+    networks: [delivery-net]
+    environment:
+      POSTGRES_USER: airflow       # database username
+      POSTGRES_PASSWORD: airflow   # database password
+      POSTGRES_DB: airflow         # database name
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]  # check Postgres is accepting connections
+      interval: 5s
+      retries: 5
+
+  # ── Airflow Init ──────────────────────────────────────────────────────────
+  # → one-shot container: initialises the Airflow database and creates admin user
+  # → runs once then exits — webserver waits for it to finish before starting
+  airflow-init:
+    image: apache/airflow:2.9.2
+    container_name: airflow-init
+    networks: [delivery-net]
+    depends_on:
+      postgres:
+        condition: service_healthy  # wait until Postgres passes its healthcheck
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    volumes:
+      - ./dags:/opt/airflow/dags  # mount your DAG files into the container
+    entrypoint: /bin/bash
+    command: -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+
+  # ── Airflow Webserver ─────────────────────────────────────────────────────
+  airflow-webserver:
+    image: apache/airflow:2.9.2
+    container_name: airflow-webserver
+    networks: [delivery-net]
+    depends_on: [airflow-init]
+    ports:
+      - "8080:8080"               # Airflow UI available at localhost:8080
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__WEBSERVER__SECRET_KEY: delivery-opt-secret
+      # → installs these Python packages inside the container on every startup
+      # → needed because the base Airflow image does not include faker, pandas, numpy
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core==1.8.0 dbt-sqlite==1.8.1"
+    volumes:
+      - ./dags:/opt/airflow/dags          # your DAG files
+      - ./src:/opt/airflow/src            # your Python scripts
+      - ./data:/opt/airflow/data          # your data files
+      - ./delivery_dbt:/opt/airflow/delivery_dbt  # dbt project folder
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      retries: 5
+
+  # ── Airflow Scheduler ─────────────────────────────────────────────────────
+  # → reads DAG files, decides when tasks are due, sends them to the executor
+  airflow-scheduler:
+    image: apache/airflow:2.9.2
+    container_name: airflow-scheduler
+    networks: [delivery-net]
+    depends_on: [airflow-webserver]
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      # → same packages needed here — the scheduler is the process that actually runs tasks
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core==1.8.0 dbt-sqlite==1.8.1"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+      - ./delivery_dbt:/opt/airflow/delivery_dbt  # dbt project folder
+    command: scheduler
+
+# ── Shared network ────────────────────────────────────────────────────────
+# → all containers join this network so they can reach each other by container_name
+networks:
+  delivery-net:
+    driver: bridge
 ```
 
-Create the file `dags/delivery_pipeline.py`:
+**Key concepts in this file:**
 
-**How to create this file:**
+**What `_PIP_ADDITIONAL_REQUIREMENTS` does:**
+- The base `apache/airflow:2.9.2` Docker image does not include `faker`, `pandas`, or `numpy`
+- This environment variable tells the Airflow container to `pip install` those packages automatically on every startup
+- It is set on BOTH `airflow-webserver` and `airflow-scheduler` because the scheduler is the process that actually runs your task code — if packages are only on the webserver the tasks still fail
+- This is why the containers take a few minutes to become healthy on first start — they are installing packages
+
+**What `volumes` does:**
+- A volume mount shares a folder from your Codespace into the container
+- `./dags:/opt/airflow/dags` means: your local `dags/` folder appears inside the container at `/opt/airflow/dags/`
+- The Airflow container reads DAG files from `/opt/airflow/dags/` — the volume mount makes your file available there without copying
+- Changes you make locally are immediately visible inside the container
+
+**What `depends_on` does:**
+- Controls startup order
+- `airflow-webserver: depends_on: [airflow-init]` means the webserver will not start until airflow-init has finished creating the database
+- Without this, the webserver would crash on startup because the database does not exist yet
+
+**What `healthcheck` does:**
+- Defines a command Docker runs periodically to check if the service is ready
+- `pg_isready -U airflow` — Postgres is ready when it can accept connections
+- Other services wait for `condition: service_healthy` before starting
+
+---
+
+## Step 7.2 — Fix folder permissions in Codespaces
+
+- The Airflow container runs as a non-root user
+- When it tries to write files to your mounted `data/` folder, it gets "Permission denied"
+- `chmod 777` gives read/write/execute permission to all users — including the container user
+
+Run these in the Codespaces terminal:
+
 ```bash
-notepad dags/delivery_pipeline.py  # open Notepad to create this new file
+sudo chmod -R 777 data
 ```
-- Notepad will open (or ask to create the file — click Yes)
-- Paste the content below into it, then press **Ctrl+S** to save and close Notepad
+**What each part means:**
+- `sudo` — run as superuser (administrator) — needed to change permissions
+- `chmod` — change file permissions
+- `-R` — recursive: applies to the folder AND everything inside it
+- `777` — gives full read/write/execute to owner, group, and everyone else
+- `data` — the folder to apply this to
+
+```bash
+mkdir -p data/processed
+```
+**What each part means:**
+- `mkdir` — make directory
+- `-p` — create parent folders too if they do not exist; no error if folder already exists
+- `data/processed` — the folder path to create
+- This folder is where `export_mart_py` saves the output CSV
+
+```bash
+sudo chmod -R 777 data
+```
+Run chmod again after creating the new folder so the container can write into `data/processed/` too.
+
+---
+
+## Step 7.3 — Create `dags/delivery_pipeline.py`
 
 **What `dags/delivery_pipeline.py` does and why it exists:**
 - **What it does:** Defines the entire pipeline as an Airflow DAG — telling Airflow which scripts to run, in what order, on what schedule, and what to do if a step fails
-- **Why separate:** Without this file, the pipeline only runs when you manually type commands in a terminal. This file is what makes it automated — Airflow reads it, registers the schedule, and takes over running everything for you. If it did not exist, you would have to remember to run every script yourself, in the right order, every single day.
-- **Input:** Schedule trigger (Airflow fires this DAG daily at midnight via `schedule_interval='@daily'`, or manually from the Airflow UI — no data file is read directly by the DAG file itself)
-- **Output:** Runs all five pipeline scripts in order (`generate_data.py` → `ingest.py` → `dbt run` → `dbt test` → export mart to `data/processed/fadr_mart.csv`), with task status logged in the Airflow database
-- **Pipeline position:** Individual scripts (`generate_data.py`, `ingest.py`, dbt models) already exist → **this DAG file** → Airflow runs them automatically every day in the correct sequence, retrying any step that fails, and showing you the result in a visual dashboard
+- **Why separate:** Without this file, the pipeline only runs when you manually type commands in a terminal. This file is what makes it automated — Airflow reads it, registers the schedule, and takes over running everything for you
+- **Input:** Schedule trigger (Airflow fires this DAG daily at midnight via `schedule_interval='@daily'`, or manually from the Airflow UI)
+- **Output:** Runs all five pipeline steps in order with task status logged in the Airflow database
+- **Pipeline position:** `generate_data.py` → `ingest.py` → SQL transformations → data quality tests → export to `data/processed/fadr_mart.csv`
+
+**Why sqlite3 instead of dbt CLI for transformations:**
+- `dbt-sqlite` (the SQLite adapter for dbt) has a known incompatibility with `dbt-core` 1.9 — a macro called `core_overrides.sql` inside dbt-sqlite passes `Undefined` instead of a string to `ref()`, crashing every `dbt run`
+- Multiple version combinations were attempted (1.5, 1.7, 1.8, 1.9) — none resolved the macro issue in the Docker container
+- The fix: write the same SQL transformations directly in Python using `sqlite3`, Python's built-in database library
+- The output is identical — the same tables are created, the same SQL logic runs — but with zero dependency on dbt version compatibility
+- This is also realistic: in production, many pipelines run SQL directly via Python rather than through dbt
+
+**Task ID naming convention:**
+- Task IDs match the script filenames for easy identification in the Airflow UI
+- `generate_data_py` → runs `src/generate_data.py`
+- `ingest_py` → runs `src/ingest.py`
+- `dbt_run_transformations` → runs the same SQL as `delivery_dbt/models/`
+- `dbt_test_data_quality` → runs the same checks as `delivery_dbt/tests/`
+- `export_mart_py` → exports mart table to CSV
+
+Create the file `dags/delivery_pipeline.py`:
 
 ```python
 from datetime import datetime, timedelta  # datetime for start_date; timedelta for delays
 from airflow import DAG  # DAG class: defines the whole pipeline
 from airflow.operators.python import PythonOperator  # runs a Python function as a task
-from airflow.operators.bash import BashOperator  # runs a shell command as a task
 
 default_args = {  # default settings applied to every task in this DAG
     'owner': 'daksha',  # who owns this pipeline (shown in Airflow UI)
@@ -228,17 +370,97 @@ def run_ingest():  # Python function Airflow calls for the ingest task
     if result.returncode != 0:  # non-zero code = script crashed
         raise Exception(f"Ingestion failed: {result.stderr}")  # fail the task with error detail
 
+def run_dbt_transformations():
+    import sqlite3
+    conn = sqlite3.connect('/opt/airflow/data/delivery_db.sqlite')
+    cur = conn.cursor()
+
+    # stg_deliveries_cleaned — staging model: cleans and casts columns from raw deliveries table
+    cur.execute("DROP VIEW IF EXISTS stg_deliveries_cleaned")
+    cur.execute("""
+        CREATE VIEW stg_deliveries_cleaned AS
+        SELECT
+            delivery_id, customer_id, city, address_type, delivery_window,
+            CAST(order_value AS REAL) AS order_value,
+            CAST(is_successful AS INTEGER) AS is_successful,
+            failure_reason,
+            CAST(attempt_number AS INTEGER) AS attempt_number,
+            DATE(attempt_date) AS attempt_date,
+            CAST(attempt_hour AS INTEGER) AS attempt_hour,
+            CAST(has_delivery_preference AS INTEGER) AS has_delivery_preference,
+            CAST(proximity_alert_sent AS INTEGER) AS proximity_alert_sent
+        FROM deliveries
+        WHERE delivery_id IS NOT NULL
+    """)
+
+    # mart_fadr_by_city_and_address — FADR (First Attempt Delivery Rate) breakdown by city and address type
+    cur.execute("DROP TABLE IF EXISTS mart_fadr_by_city_and_address")
+    cur.execute("""
+        CREATE TABLE mart_fadr_by_city_and_address AS
+        SELECT
+            city, address_type,
+            COUNT(*) AS total_attempts,
+            SUM(is_successful) AS successful_deliveries,
+            ROUND(AVG(is_successful), 4) AS fadr,
+            ROUND(AVG(1 - is_successful), 4) AS failure_rate,
+            AVG(order_value) AS avg_order_value
+        FROM stg_deliveries_cleaned
+        GROUP BY city, address_type
+    """)
+
+    # mart_fadr_by_window_and_alerts — FADR by delivery window and alert settings
+    cur.execute("DROP TABLE IF EXISTS mart_fadr_by_window_and_alerts")
+    cur.execute("""
+        CREATE TABLE mart_fadr_by_window_and_alerts AS
+        SELECT
+            delivery_window, address_type, has_delivery_preference, proximity_alert_sent,
+            COUNT(*) AS total_attempts,
+            ROUND(AVG(is_successful), 4) AS fadr
+        FROM stg_deliveries_cleaned
+        GROUP BY delivery_window, address_type, has_delivery_preference, proximity_alert_sent
+        HAVING total_attempts > 50
+    """)
+
+    conn.commit()
+    conn.close()
+    print("dbt transformations completed: stg_deliveries_cleaned, mart_fadr_by_city_and_address, mart_fadr_by_window_and_alerts")
+
+
+def run_dbt_tests():
+    import sqlite3
+    conn = sqlite3.connect('/opt/airflow/data/delivery_db.sqlite')
+    cur = conn.cursor()
+
+    # Test 1: no NULL delivery_ids in staging
+    cur.execute("SELECT COUNT(*) FROM stg_deliveries_cleaned WHERE delivery_id IS NULL")
+    nulls = cur.fetchone()[0]
+    assert nulls == 0, f"Test failed: {nulls} NULL delivery_ids in stg_deliveries_cleaned"
+
+    # Test 2: is_successful only contains 0 or 1
+    cur.execute("SELECT COUNT(*) FROM stg_deliveries_cleaned WHERE is_successful NOT IN (0, 1)")
+    bad = cur.fetchone()[0]
+    assert bad == 0, f"Test failed: {bad} invalid is_successful values"
+
+    # Test 3: mart tables exist and have rows
+    cur.execute("SELECT COUNT(*) FROM mart_fadr_by_city_and_address")
+    rows = cur.fetchone()[0]
+    assert rows > 0, "Test failed: mart_fadr_by_city_and_address is empty"
+
+    conn.close()
+    print("All dbt tests passed")
+
+
 def run_export():  # Python function Airflow calls for the CSV export task
     import sqlite3  # built-in Python library for SQLite databases
     import pandas as pd  # pandas for reading SQL results into a dataframe
-    conn = sqlite3.connect('data/delivery_db.sqlite')  # open the project database
+    conn = sqlite3.connect('/opt/airflow/data/delivery_db.sqlite')  # open the project database
     # pd.read_sql(sql, conn) = runs the SQL query and returns the results as a pandas DataFrame
     # → a DataFrame is a table of rows and columns you can work with in Python
-    df = pd.read_sql("SELECT * FROM fadr_by_segment", conn)  # load the mart table into a dataframe
+    df = pd.read_sql("SELECT * FROM mart_fadr_by_city_and_address", conn)  # load the mart table into a dataframe
     # df.to_csv('path', index=False) = write the DataFrame to a CSV file
     # → index=False = do NOT write the row numbers (0, 1, 2...) as an extra column in the file
     # → without index=False the CSV gets an unwanted first column: 0, 1, 2, 3 ...
-    df.to_csv('data/processed/fadr_mart.csv', index=False)  # save as CSV; index=False skips row numbers
+    df.to_csv('/opt/airflow/data/processed/fadr_mart.csv', index=False)  # save as CSV; index=False skips row numbers
     conn.close()  # always close DB connections to free resources
     print(f"Exported {len(df)} rows to data/processed/fadr_mart.csv")  # log the export count
 
@@ -270,36 +492,29 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
     # What PythonOperator is: a task that runs a Python function you define.
     # You pass python_callable=your_function and Airflow calls it when the task executes.
     t1_generate = PythonOperator(  # task 1: generate raw delivery data
-        task_id='generate_raw_data',  # unique name for this task in Airflow UI
+        task_id='generate_data_py',  # matches src/generate_data.py
         python_callable=run_generate,  # the function to call when this task runs
     )
 
     t2_ingest = PythonOperator(  # task 2: ingest data to SQLite database
-        task_id='ingest_to_database',  # unique name for this task in Airflow UI
+        task_id='ingest_py',  # matches src/ingest.py
         python_callable=run_ingest,  # the function to call when this task runs
     )
 
-    # What BashOperator is: a task that runs a shell command (a bash command).
-    # Use it when you want to run a CLI tool like dbt that doesn't have a Python API.
-    t3_dbt = BashOperator(  # task 3: run dbt transformation models
-        task_id='run_dbt_transformations',  # unique name for this task in Airflow UI
-        # 'cd delivery_dbt && dbt run ...' = two shell commands joined by &&
-    # → cd delivery_dbt  = move into the delivery_dbt folder first
-    # → &&              = only run the second command IF the first succeeded (exit code 0)
-    # → dbt run         = run all dbt transformation models
-    # → --profiles-dir ~/.dbt = tell dbt where to find database credentials
-    bash_command='cd delivery_dbt && dbt run --profiles-dir ~/.dbt',  # cd to dbt dir, then run models
+    # PythonOperator runs the SQL transformations directly in Python using sqlite3
+    # — avoids dbt version compatibility issues in the Docker container
+    t3_dbt = PythonOperator(  # task 3: run dbt-equivalent SQL transformations
+        task_id='dbt_run_transformations',
+        python_callable=run_dbt_transformations,
     )
 
-    t4_test = BashOperator(  # task 4: run dbt data quality tests
-        task_id='run_dbt_tests',  # unique name for this task in Airflow UI
-        # Same && pattern as above: cd first, then only run 'dbt test' if cd succeeded
-        # → dbt test = runs all tests defined in your dbt schema.yml files
-        bash_command='cd delivery_dbt && dbt test --profiles-dir ~/.dbt',  # cd to dbt dir, then test data quality
+    t4_test = PythonOperator(  # task 4: run data quality tests
+        task_id='dbt_test_data_quality',
+        python_callable=run_dbt_tests,
     )
 
     t5_export = PythonOperator(  # task 5: export the mart table to CSV
-        task_id='export_mart_to_csv',  # unique name for this task in Airflow UI
+        task_id='export_mart_py',  # matches src/export_mart.py (runs inline export function)
         python_callable=run_export,  # the function to call when this task runs
     )
 
@@ -310,65 +525,66 @@ with DAG(  # 'with DAG() as dag:' creates the pipeline definition object
     # → t2_ingest >> t3_dbt      = t3 waits for t2 to succeed
     # → you can chain as many as you like: A >> B >> C >> D >> E
     # → if t2 fails, t3, t4, and t5 are all skipped automatically
-    # Define the dependency chain
     t1_generate >> t2_ingest >> t3_dbt >> t4_test >> t5_export  # run tasks in this exact order
 ```
 
 ---
 
-## Step 5.3 — Copy the DAG to Airflow's DAGs folder
+## Step 7.4 — Start the containers in Codespaces
+
+In the Codespaces terminal:
 
 ```bash
-mkdir -p airflow_home/dags
-cp dags/delivery_pipeline.py airflow_home/dags/
+docker compose up -d
 ```
+**What each part means:**
+- `docker compose` — Docker Compose CLI tool, reads `docker-compose.yml`
+- `up` — start all services defined in the file
+- `-d` — detached mode: runs containers in the background, gives you the terminal back
+
+Wait about 2 minutes for the containers to start and install pip packages. Check status:
+
+```bash
+docker ps
+```
+**What to look for:**
+- All containers should show `(healthy)` or `Up` in the STATUS column
+- `airflow-webserver` and `airflow-scheduler` will take longer — they are installing `faker`, `pandas`, `numpy` via `_PIP_ADDITIONAL_REQUIREMENTS`
+- Do not open the UI until you see `(healthy)` next to `airflow-webserver`
 
 ---
 
-## Step 5.4 — Start the Airflow web server
+## Step 7.5 — Open the Airflow UI in Codespaces
 
-Open two separate terminal windows.
+- Codespaces does not expose container ports the same way as `localhost`
+- In the Codespaces terminal, click the **PORTS** tab at the bottom
+- Find port `8080` in the list
+- Right-click it → **Port Visibility** → **Public** (required for the browser to open it)
+- Click the globe icon next to port `8080` to open the Airflow UI in your browser
 
-**Terminal 1:**
-```bash
-export AIRFLOW_HOME=$(pwd)/airflow_home  # tell Airflow where its files are
-airflow webserver --port 8080  # start the Airflow UI on port 8080
-```
-
-**Terminal 2:**
-```bash
-export AIRFLOW_HOME=$(pwd)/airflow_home  # tell Airflow where its files are
-airflow scheduler  # start the process that triggers and monitors DAG runs
-```
-
----
-
-## Step 5.5 — Open the Airflow UI
-
-Go to `http://localhost:8080` in your browser.
-
-Default credentials:
+Login credentials:
 - Username: `admin`
-- Password: (shown in terminal when you first ran `airflow db init`)
-
-You will see your DAG `delivery_optimisation_pipeline` listed.
+- Password: `admin`
 
 ---
 
-## Step 5.6 — Trigger a manual run
+## Step 7.6 — Trigger a manual run
 
 In the Airflow UI:
-1. Find `delivery_optimisation_pipeline`
-2. Click the play button (Trigger DAG)
-3. Watch each task turn green as it succeeds
+1. Find `delivery_optimisation_pipeline` in the DAG list
+2. Click the **▶** (play) button on the right → **Trigger DAG**
+3. Click the DAG name to open the Graph view
+4. Watch each task turn dark green as it succeeds
 
-**Why this matters:**
-- Being able to show a running Airflow DAG in a portfolio interview is extremely powerful
-- It demonstrates you understand production-grade orchestration, not just scripts
+**What the colours mean:**
+- Light green / running = task is currently executing
+- Dark green = task succeeded
+- Red = task failed (click it → **Log** to see the error)
+- Grey = task is waiting for an upstream task to finish
 
 ---
 
-## Step 5.7 — Understanding what you built
+## Step 7.7 — Understanding what you built
 
 | Concept | What you did |
 |---|---|
@@ -377,14 +593,19 @@ In the Airflow UI:
 | Dependencies | `>>` operator sets execution order |
 | Schedule | `@daily` means this runs automatically every day |
 | Retry logic | `retries: 2` means failed tasks retry twice before alerting |
+| Docker | Containerised Airflow so it runs anywhere without admin rights |
+| `_PIP_ADDITIONAL_REQUIREMENTS` | Installs missing Python packages inside the container on startup |
+| Volume mounts | Shares your local code and data folders with the containers |
+| sqlite3 instead of dbt CLI | Avoids dbt-sqlite version incompatibility in Docker |
 
 ---
 
-## Step 5.8 — Commit
+## Step 7.8 — Commit
 
 ```bash
-git add dags/  # stage the entire dags folder
-git commit -m "Add Airflow DAG for end-to-end delivery pipeline orchestration"  # save snapshot
+git add dags/delivery_pipeline.py docker-compose.yml delivery_dbt/profiles.yml
+git add -u delivery_dbt/macros/
+git commit -m "Guide 07: Airflow DAG with Docker, all 5 tasks passing via sqlite3"
 ```
 
 ---
@@ -396,251 +617,139 @@ You now have:
 - Visual monitoring of every task
 - Automatic retries on failure
 - Version-controlled pipeline code
+- Docker stack that reproduces the entire environment with one command
 
 ---
 
-## Git Checkpoint — End of Guide 06
+## Git Checkpoint — End of Guide 07
 
 - This is the full Git workflow you do at the end of every guide
 - In a real office this is called "raising a PR (Pull Request)"
-- You will do this 13 times — by the third time it feels automatic
-
----
 
 ### Step G3 — Check what changed
 
 ```bash
-git status  # show what files changed since last commit
+git status
 ```
 **What to look for:**
 - Files listed in red under "Changes not staged for commit" — these are files you modified
 - Files in red under "Untracked files" — these are new files Git has never seen before
 - Nothing should be green yet — you have not staged anything
 
-**In an office:**
-- Before staging anything, always read `git status` first
-- It shows you exactly what you are about to commit
-- Committing blindly is how secrets (passwords, API keys) accidentally get pushed to GitHub
-
----
-
 ### Step G4 — Review your changes line by line
 
 ```bash
-git diff  # show exact lines changed (+ added, - removed)
+git diff
 ```
 **What this shows:**
 - The exact lines you added (in green with `+`) and deleted (in red with `-`) in every modified file
 - This is your chance to review your own work before anyone else sees it
 
-**What to check:**
-- Did I accidentally leave a `print("test123")` debugging line?
-- Did I hardcode a password anywhere?
-- Does the change make sense — does it do what I intended?
-
 Press `q` to exit the diff view.
-
-**In an office:**
-- Senior engineers always do `git diff` before staging
-- It catches mistakes before they become commits
-
----
 
 ### Step G5 — Stage your files
 
 ```bash
-git add dags/delivery_pipeline.py  # stage this specific file for commit
+git add dags/delivery_pipeline.py docker-compose.yml delivery_dbt/profiles.yml
+git add -u delivery_dbt/macros/
 ```
-
-**What staging means:**
-- You are selecting which changes go into the next commit
-- Git has a two-step save: stage first, then commit
-- This lets you commit only specific files even if you changed many
-
-**Why not `git add .`?**
-- Using `.` adds every changed file including things you may not want — temporary files, `.env` files with passwords, large data files
-- Always add by name or pattern
-
----
+**What `-u` means on git add:**
+- `-u` stages modifications AND deletions of already-tracked files
+- Needed here because `delivery_dbt/macros/core_overrides.sql` was deleted — plain `git add` only adds new or modified files
 
 ### Step G6 — Verify what is staged
 
 ```bash
-git diff --staged  # show staged changes (what will be in the next commit)
+git diff --staged
 ```
-**What this shows:**
-- The same line-by-line diff as before, but ONLY for files you just staged
-- This is your final review before the commit is permanent
-
 **The difference between `git diff` and `git diff --staged`:**
 - `git diff` → shows unstaged changes (what you changed but have NOT added yet)
 - `git diff --staged` → shows staged changes (what you HAVE added, about to commit)
 
 Press `q` to exit.
 
----
-
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 06: Airflow DAG orchestrating 5-task delivery pipeline with daily schedule"  # save permanent snapshot
+git commit -m "Guide 07: Airflow DAG with Docker, all 5 tasks passing via sqlite3"
 ```
-**What a commit is:**
-- A permanent snapshot saved in Git's history
-- Every commit gets a unique ID (called a hash — a long string like `a3f9c2b`)
-- You can always return to this exact state
-
 **What makes a good commit message:**
-- Good: `"Guide 06: Airflow DAG orchestrating 5-task delivery pipeline with daily schedule"`
+- Good: `"Guide 07: Airflow DAG with Docker, all 5 tasks passing via sqlite3"`
 - Bad: `"done"`, `"update"`, `"changes"`
-
-Rule: your future self reading this 3 months later should know exactly what changed without looking at the code.
-
----
+- Rule: your future self reading this 3 months later should know exactly what changed
 
 ### Step G8 — Check your commit was saved
 
 ```bash
-git log --oneline  # show commit history, one line per commit
+git log --oneline
 ```
 **What this shows:**
 - All commits on this branch, one line each
 - The most recent is at the top
-- You should see your new commit at the top of the list
-
-**What `--oneline` means:**
-- Show one line per commit instead of the full multi-line format
-- Makes it easy to scan history quickly
-
-Example output:
-```
-e2c5a9b Guide 06: Airflow DAG orchestrating 5-task delivery pipeline with daily schedule
-d9a3b1f Guide 05: PySpark analysis with window functions, feature engineering, Parquet output
-9b2c3d1 Initial commit: project guides and README
-```
-
-**In an office:**
-- `git log --oneline` is one of the most used commands
-- It gives you the full history of the branch at a glance
-
----
 
 ### Step G9 — Push to GitHub
 
 ```bash
-git push -u origin feature/guide-07-airflow  # -u = set upstream; push branch to GitHub
+git push -u origin feature/guide-07-airflow
 ```
-**What `git push` does:**
-- Uploads your local commits to GitHub
-- Until you push, your commit only exists on your laptop
-
 **What `-u` means:**
 - Sets the upstream — links your local branch to a branch of the same name on GitHub
 - You only need `-u` the first time you push a new branch
-- After that, just `git push` is enough
 
-**What `origin` means:**
-- The name of your GitHub remote
-- When you ran `git remote add origin ...` in Guide 00B, you named it `origin`
-- That name sticks
-
-- After pushing, go to your GitHub repository in the browser
-- You will see a yellow banner: **"feature/guide-07-airflow had recent pushes"**
-
----
+After pushing, go to your GitHub repository in the browser. You will see a yellow banner: **"feature/guide-07-airflow had recent pushes"**
 
 ### Step G10 — Raise a Pull Request on GitHub
 
-- A Pull Request (PR) is a formal request to merge your branch into another branch
-- You are asking: "I finished this work, please review it and bring it into develop"
+**PR title:** `Guide 07: Airflow pipeline orchestration with Docker`
 
+**PR description:**
+```
+- Added docker-compose.yml with 7 services: Zookeeper, Kafka, Postgres, Airflow Init, Webserver, Scheduler, Kafka Setup
+- Created dags/delivery_pipeline.py with 5 PythonOperator tasks
+- Used sqlite3 instead of dbt CLI to avoid dbt-sqlite version incompatibility in Docker
+- All 5 tasks passing in GitHub Codespaces: generate_data_py → ingest_py → dbt_run_transformations → dbt_test_data_quality → export_mart_py
+```
+
+Steps in GitHub:
 1. Click **Compare & pull request** in the yellow banner
-2. Check the top settings:
-   - **base:** `develop` ← where the code will go
-   - **compare:** `feature/guide-07-airflow` ← what you are merging in
-3. Title: `Guide 06: Airflow pipeline orchestration`
-4. Description: 1-2 lines about what this guide added
-5. Click **Create pull request**
-6. Click **Merge pull request** → **Confirm merge**
-
-**In an office:**
-- A colleague would review your PR before approving
-- They would read your diff, leave comments, and you would discuss
-- Here you review and merge yourself — but the process is identical
-
-**Why not push directly to develop?**
-- In real teams, direct pushes to develop and main are blocked
-- Every change must go through a PR
-- This ensures someone always reviews code before it merges
-- You are building that exact habit
-
----
+2. Check: **base:** `develop` ← **compare:** `feature/guide-07-airflow`
+3. Paste the title and description above
+4. Click **Create pull request**
+5. Click **Merge pull request** → **Confirm merge**
 
 ### Step G11 — Pull the merged changes back locally
 
 ```bash
-git checkout develop  # switch back to develop branch
+git checkout develop
 ```
-- Switches you back to develop
-- No `-b` here — `develop` already exists, you are just switching to it
-
 ```bash
-git pull origin develop  # bring merged PR changes down to your local machine
+git pull origin develop
 ```
-- Downloads the merged PR from GitHub into your local develop
-- Your local develop now has everything from the feature branch you just merged
-
-**What each part means:**
-- `origin` — download from GitHub (the remote)
-- `develop` — specifically from the develop branch on GitHub
-- `pull` — download + merge in one step (it runs `git fetch` then `git merge` automatically)
-
 ```bash
-git log --oneline  # confirm Guide 06 commit appears in develop history
+git log --oneline
 ```
-- You should now see your Guide 06 commit in develop's history
-- Confirm it is there
-
-**What `--oneline` means:** Show one line per commit instead of the full multi-line format.
-
----
+- You should now see your Guide 07 commit in develop's history
 
 ### Step G12 — Delete the feature branch
 
 ```bash
-git branch -d feature/guide-07-airflow  # -d = delete locally (safe: refuses if unmerged)
+git branch -d feature/guide-07-airflow
 ```
 **What `-d` means:**
 - Delete the branch locally
 - Git will refuse to delete if the branch has unmerged commits — a safety guard
-- Since you just merged the PR, `-d` works
 
 ```bash
-git push origin --delete feature/guide-07-airflow  # delete the branch on GitHub too
+git push origin --delete feature/guide-07-airflow
 ```
-Deletes the branch on GitHub too.
-
-**What each part means:**
-- `origin` — push this action to GitHub (not just locally)
-- `--delete` — delete the named branch on GitHub
-
-**Why delete?**
-- Merged branches are dead branches
-- Keeping them clutters the repository
-- In real teams, merged branches are always deleted
-- A clean repo = a professional habit
-
----
+- Deletes the branch on GitHub too
+- Merged branches are dead branches — a clean repo is a professional habit
 
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-08-kafka  # -b = create new branch and switch to it
+git checkout -b feature/guide-08-kafka
 ```
-
-**What `-b` means:**
-- Creates a new branch AND switches to it in one command
-- Without `-b`, checkout only switches to an existing branch and would error if the branch does not exist
 
 You are now on a fresh branch, ready for the next guide.
 
@@ -648,10 +757,8 @@ You are now on a fresh branch, ready for the next guide.
 
 ### What your GitHub looks like after this
 
-- **Pull Requests tab** → one closed PR with your title and description
-- **develop branch → commits** → your Guide 06 commit is in the history
-- **Branches** → feature/guide-07-airflow is gone (deleted)
+- **Pull Requests tab** → one closed PR: `Guide 07: Airflow pipeline orchestration with Docker`
+- **develop branch → commits** → your Guide 07 commit is in the history
+- **Branches** → `feature/guide-07-airflow` is gone (deleted)
 
-This is exactly what a professional Git history looks like.
-
-**Next:** [GUIDE_07_KAFKA.md](GUIDE_07_KAFKA.md) — Handle real-time delivery events with Apache Kafka
+**Next:** [GUIDE_08_KAFKA.md](GUIDE_08_KAFKA.md) — Handle real-time delivery events with Apache Kafka
