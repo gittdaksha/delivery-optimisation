@@ -64,26 +64,43 @@ pip install kafka-python==2.0.2
 - Version `2.0.2` is pinned — later versions have known compatibility issues with this setup
 - This installs in Codespaces, not inside the Docker containers — your Python scripts run in Codespaces and connect to the Kafka container via port 9092
 
+**Step 6 — create `src/kafka_producer.py`**
+
+**What `src/kafka_producer.py` does and why it exists:**
+- **What it does:** Simulates a delivery partner's app publishing live status updates — one event every 0.5 seconds — into the Kafka `delivery-events` topic
+- **Why separate from the consumer:** In a real system the producer (delivery partner's app) and consumer (analytics system) are completely separate services run by different teams — they never talk to each other directly, only through Kafka. Keeping them in separate files mirrors that real-world separation
+- **Input:** No file — events are generated in memory using `random` and `Faker`
+- **Output:** Kafka topic `delivery-events` — a continuous stream of JSON messages
+- **Pipeline position:** Kafka broker running → **this script** → events queue up in the topic → consumer reads them
+
+Run this command in Codespaces to create the file:
+
 ```bash
-# Step 6 — create the producer script
-# cat > filename << 'ENDOFFILE' ... ENDOFFILE is a heredoc — it writes everything
-# between the two ENDOFFILE markers directly into the file in one command.
-# Use this instead of opening a text editor.
 cat > src/kafka_producer.py << 'ENDOFFILE'
-import json
-import time
-import random
-from kafka import KafkaProducer
-from faker import Faker
-from datetime import datetime
+import json          # converts Python dicts to JSON strings for Kafka
+import time          # used for time.sleep to control how fast events are sent
+import random        # used to randomly pick cities, statuses, address types
+from kafka import KafkaProducer   # Kafka client — lets Python publish messages
+from faker import Faker           # generates realistic fake data (UUIDs, names)
+from datetime import datetime     # used to timestamp each event
 
-fake = Faker('en_IN')
+fake = Faker('en_IN')  # Indian locale — gives realistic Indian-style data
 
+# Lists to randomly pick from — mirrors real delivery data categories
 CITIES        = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Pune', 'Chennai']
 ADDRESS_TYPES = ['Apartment', 'PG/Hostel', 'House', 'Office', 'Gated Community']
 WINDOWS       = ['Morning (9-12)', 'Afternoon (12-15)', 'Evening (15-19)', 'Night (19-22)']
 STATUSES      = ['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED', 'RESCHEDULED']
 
+# KafkaProducer connects to the Kafka broker and prepares to publish messages
+# bootstrap_servers='localhost:9092' — the port mapped by docker-compose.yml
+#   when your script connects to localhost:9092, Docker routes it to the kafka container
+# value_serializer — Kafka only transmits raw bytes, not Python objects
+#   lambda v: json.dumps(v).encode('utf-8') means:
+#   → json.dumps(v) converts your dict to a JSON string: {'city':'Mumbai'} → '{"city":"Mumbai"}'
+#   → .encode('utf-8') converts that string to bytes: '{"city":"Mumbai"}' → b'{"city":"Mumbai"}'
+# key_serializer — the routing key also needs to be bytes
+#   lambda k: k.encode('utf-8') converts string 'Mumbai' → bytes b'Mumbai'
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
@@ -93,60 +110,108 @@ producer = KafkaProducer(
 print("Producing delivery events to Kafka topic 'delivery-events'...")
 print("Press Ctrl+C to stop.\n")
 
-count = 0
+count = 0  # tracks how many events have been published
 try:
-    while True:
-        city         = random.choice(CITIES)
-        address_type = random.choice(ADDRESS_TYPES)
-        status       = random.choice(STATUSES)
+    while True:  # runs forever until you press Ctrl+C
+        city         = random.choice(CITIES)        # pick a random city for this event
+        address_type = random.choice(ADDRESS_TYPES) # pick a random address type
+        status       = random.choice(STATUSES)      # pick a random delivery status
+
+        # Build the event dict — one delivery status update
         event = {
-            "delivery_id":  fake.uuid4(),
-            "city":         city,
-            "address_type": address_type,
-            "window":       random.choice(WINDOWS),
-            "status":       status,
-            "timestamp":    datetime.now().isoformat(),
-            "order_value":  round(random.uniform(150, 8000), 2),
-            "attempt":      random.randint(1, 3),
+            "delivery_id":  fake.uuid4(),                        # unique ID for this delivery
+            "city":         city,                                 # city of the delivery
+            "address_type": address_type,                        # type of address
+            "window":       random.choice(WINDOWS),              # delivery time window
+            "status":       status,                              # current delivery status
+            "timestamp":    datetime.now().isoformat(),          # exact time of this event
+            "order_value":  round(random.uniform(150, 8000), 2), # order value in rupees
+            "attempt":      random.randint(1, 3),                # which attempt this is
         }
+
+        # producer.send() publishes one message to Kafka
+        # topic='delivery-events' — which Kafka channel to write to
+        # key=city — routing key: same city always goes to the same partition
+        #   this guarantees all Mumbai events are in order relative to each other
+        # value=event — the Python dict; value_serializer converts it to bytes automatically
+        # .send() is asynchronous — it queues the message; producer.flush() forces it out
         producer.send(topic='delivery-events', key=city, value=event)
-        count += 1
+
+        count += 1  # increment the published event count
+
+        # Print one status line per event so you can watch events flow
+        # Inline if-else: value_if_true  if  condition  else  value_if_false
+        # → "✓" if DELIVERED, "✗" if FAILED or RESCHEDULED, "→" for anything else
         symbol = "✓" if status == "DELIVERED" else ("✗" if status in ["FAILED", "RESCHEDULED"] else "→")
+        # f-string format specs keep columns aligned:
+        # {count:04d} = integer padded to 4 digits: 1→0001, 42→0042
+        # {city:12s}  = string padded to 12 characters wide
         print(f"[{count:04d}] {symbol} {city:12s} | {address_type:18s} | {status}")
-        time.sleep(0.5)
-except KeyboardInterrupt:
+
+        time.sleep(0.5)  # wait 0.5 seconds before the next event = 2 events per second
+
+except KeyboardInterrupt:  # user pressed Ctrl+C
     print(f"\nStopped. Published {count} events.")
-    producer.flush()
-    producer.close()
+    producer.flush()  # send any messages still buffered in memory before closing
+    producer.close()  # close the connection to Kafka cleanly
 ENDOFFILE
 ```
 
+**What the command `cat > src/kafka_producer.py << 'ENDOFFILE' ... ENDOFFILE` does:**
+- `cat >` — write output to a file (overwrites if file already exists)
+- `<< 'ENDOFFILE'` — heredoc: everything typed until the word `ENDOFFILE` is the content
+- This creates the file in one command without opening a text editor
+
+---
+
+**Step 7 — create `src/kafka_consumer.py`**
+
+**What `src/kafka_consumer.py` does and why it exists:**
+- **What it does:** Reads every event from the Kafka `delivery-events` topic and writes each one into a SQLite table, printing a live FADR every 10 events
+- **Why separate:** Any service that needs the event data should read independently at its own pace — a separate consumer file means if the consumer crashes, the producer keeps running and events queue safely in Kafka until the consumer restarts
+- **Input:** Kafka topic `delivery-events` — the stream published by `kafka_producer.py`
+- **Output:** `data/delivery_db.sqlite` — `delivery_events_stream` table, one row per event
+- **Pipeline position:** Producer publishing events → **this script** → events stored in SQLite
+
 ```bash
-# Step 7 — create the consumer script
 cat > src/kafka_consumer.py << 'ENDOFFILE'
-import json
-import sqlite3
-from kafka import KafkaConsumer
-from datetime import datetime
+import json          # parses incoming JSON bytes back into Python dicts
+import sqlite3       # built-in Python library to write events to SQLite
+from kafka import KafkaConsumer   # Kafka client — lets Python read messages
+from datetime import datetime     # used to record when each event was consumed
 
-DB_PATH = 'data/delivery_db.sqlite'
+DB_PATH = 'data/delivery_db.sqlite'  # path to the project database
 
+# Open (or create) the SQLite database and create the events table
 conn = sqlite3.connect(DB_PATH)
+# CREATE TABLE IF NOT EXISTS — safe to run every time; no error if table already exists
 conn.execute("""
     CREATE TABLE IF NOT EXISTS delivery_events_stream (
-        delivery_id  TEXT,
-        city         TEXT,
-        address_type TEXT,
-        window       TEXT,
-        status       TEXT,
-        timestamp    TEXT,
-        order_value  REAL,
-        attempt      INTEGER,
-        consumed_at  TEXT
+        delivery_id  TEXT,    -- unique ID for each delivery
+        city         TEXT,    -- city of the delivery
+        address_type TEXT,    -- type of address (Apartment, Office, etc.)
+        window       TEXT,    -- delivery time window
+        status       TEXT,    -- DELIVERED, FAILED, IN_TRANSIT, etc.
+        timestamp    TEXT,    -- when the event occurred (from the producer)
+        order_value  REAL,    -- value of the order in rupees
+        attempt      INTEGER, -- which delivery attempt this is
+        consumed_at  TEXT     -- when THIS consumer read the event from Kafka
     )
 """)
-conn.commit()
+conn.commit()  # write the CREATE TABLE to disk
 
+# KafkaConsumer connects to Kafka and prepares to read messages
+# 'delivery-events' — the name of the topic to read from
+# bootstrap_servers='localhost:9092' — same mapped port as the producer
+# value_deserializer — the REVERSE of the producer's value_serializer:
+#   lambda m: json.loads(m.decode('utf-8')) means:
+#   → m.decode('utf-8') converts bytes back to a string: b'{"city":"Mumbai"}' → '{"city":"Mumbai"}'
+#   → json.loads(...) converts that string back to a dict: '{"city":"Mumbai"}' → {'city':'Mumbai'}
+# auto_offset_reset='earliest' — an offset is the position of a message in a partition
+#   'earliest' means: if this consumer has never run before, start from the very first message
+#   'latest' would mean: only read new messages arriving from now
+# group_id='delivery-analytics' — Kafka tracks how far this consumer group has read
+#   if you restart this script, it picks up where it left off — no duplicate reads
 consumer = KafkaConsumer(
     'delivery-events',
     bootstrap_servers='localhost:9092',
@@ -157,11 +222,20 @@ consumer = KafkaConsumer(
 
 print("Consuming from 'delivery-events'... (Ctrl+C to stop)")
 
-count = 0
+count = 0  # tracks how many messages have been consumed
 try:
+    # 'for message in consumer' — the consumer is iterable
+    # each iteration blocks until the next message arrives from Kafka
+    # this loop runs FOREVER — it never exits on its own (press Ctrl+C to stop)
+    # message has attributes: .value (the payload), .key, .topic, .partition, .offset
     for message in consumer:
-        event = message.value
-        event['consumed_at'] = datetime.now().isoformat()
+        event = message.value  # already a Python dict — value_deserializer ran automatically
+
+        event['consumed_at'] = datetime.now().isoformat()  # stamp when we read it
+
+        # INSERT one row into SQLite for this event
+        # VALUES (?, ?, ...) — ? placeholders are filled in order by the tuple below
+        # using ? instead of f-strings prevents SQL injection attacks
         conn.execute("""
             INSERT INTO delivery_events_stream
             (delivery_id, city, address_type, window, status, timestamp, order_value, attempt, consumed_at)
@@ -171,22 +245,33 @@ try:
             event['window'], event['status'], event['timestamp'],
             event['order_value'], event['attempt'], event['consumed_at']
         ))
-        conn.commit()
-        count += 1
+        conn.commit()  # write each event to disk immediately (not batched)
+
+        count += 1  # increment consumed message count
+
+        # count % 10 == 0 uses the modulo operator
+        # % gives the remainder after division: 10%10=0, 20%10=0, 15%10=5
+        # so this is True only every 10th message
         if count % 10 == 0:
+            # Query the live FADR from all terminal events seen so far
+            # CASE WHEN status='DELIVERED' THEN 1.0 ELSE 0.0 END
+            #   → assigns 1.0 for delivered, 0.0 for everything else
+            # AVG of 1s and 0s = success rate as a decimal; *100 = percentage
+            # Only count terminal statuses (final outcomes) — not in-progress ones
             cur = conn.execute("""
                 SELECT ROUND(AVG(CASE WHEN status='DELIVERED' THEN 1.0 ELSE 0.0 END)*100, 1),
                        COUNT(*)
                 FROM delivery_events_stream
                 WHERE status IN ('DELIVERED','FAILED','RESCHEDULED')
             """)
-            row = cur.fetchone()
-            if row[0]:
+            row = cur.fetchone()  # fetchone() returns one row as a tuple: (fadr, count)
+            if row[0]:  # row[0] is None if no terminal events yet — only print when data exists
                 print(f"  Live FADR: {row[0]}%  |  Total terminal events: {row[1]}")
-except KeyboardInterrupt:
+
+except KeyboardInterrupt:  # user pressed Ctrl+C
     print(f"\nConsumed {count} messages. Stored in database.")
-    conn.close()
-    consumer.close()
+    conn.close()     # close the database connection cleanly
+    consumer.close() # close the Kafka connection cleanly
 ENDOFFILE
 ```
 
