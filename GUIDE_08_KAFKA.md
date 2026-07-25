@@ -6,6 +6,187 @@
 
 ---
 
+## Exact steps to follow in order
+
+**In Codespaces terminal:**
+
+```bash
+# Step 1 — switch to your feature branch
+git checkout develop
+git pull origin develop
+git checkout -b feature/guide-08-kafka
+```
+
+```bash
+# Step 2 — start all containers
+docker compose up -d
+```
+
+```bash
+# Step 3 — wait 2 minutes, then verify all containers are running
+docker ps
+```
+- You should see: `zookeeper`, `kafka`, `kafka-setup` (Exited 0), `postgres`, `airflow-init` (Exited 0), `airflow-webserver`, `airflow-scheduler`
+
+```bash
+# Step 4 — verify the delivery-events topic was created
+docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
+```
+- You should see `delivery-events` in the output
+
+```bash
+# Step 5 — install the Kafka Python library
+pip install kafka-python==2.0.2
+```
+
+```bash
+# Step 6 — create the producer script
+cat > src/kafka_producer.py << 'ENDOFFILE'
+import json
+import time
+import random
+from kafka import KafkaProducer
+from faker import Faker
+from datetime import datetime
+
+fake = Faker('en_IN')
+
+CITIES        = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Pune', 'Chennai']
+ADDRESS_TYPES = ['Apartment', 'PG/Hostel', 'House', 'Office', 'Gated Community']
+WINDOWS       = ['Morning (9-12)', 'Afternoon (12-15)', 'Evening (15-19)', 'Night (19-22)']
+STATUSES      = ['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED', 'RESCHEDULED']
+
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+    key_serializer=lambda k: k.encode('utf-8')
+)
+
+print("Producing delivery events to Kafka topic 'delivery-events'...")
+print("Press Ctrl+C to stop.\n")
+
+count = 0
+try:
+    while True:
+        city         = random.choice(CITIES)
+        address_type = random.choice(ADDRESS_TYPES)
+        status       = random.choice(STATUSES)
+        event = {
+            "delivery_id":  fake.uuid4(),
+            "city":         city,
+            "address_type": address_type,
+            "window":       random.choice(WINDOWS),
+            "status":       status,
+            "timestamp":    datetime.now().isoformat(),
+            "order_value":  round(random.uniform(150, 8000), 2),
+            "attempt":      random.randint(1, 3),
+        }
+        producer.send(topic='delivery-events', key=city, value=event)
+        count += 1
+        symbol = "✓" if status == "DELIVERED" else ("✗" if status in ["FAILED", "RESCHEDULED"] else "→")
+        print(f"[{count:04d}] {symbol} {city:12s} | {address_type:18s} | {status}")
+        time.sleep(0.5)
+except KeyboardInterrupt:
+    print(f"\nStopped. Published {count} events.")
+    producer.flush()
+    producer.close()
+ENDOFFILE
+```
+
+```bash
+# Step 7 — create the consumer script
+cat > src/kafka_consumer.py << 'ENDOFFILE'
+import json
+import sqlite3
+from kafka import KafkaConsumer
+from datetime import datetime
+
+DB_PATH = 'data/delivery_db.sqlite'
+
+conn = sqlite3.connect(DB_PATH)
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS delivery_events_stream (
+        delivery_id  TEXT,
+        city         TEXT,
+        address_type TEXT,
+        window       TEXT,
+        status       TEXT,
+        timestamp    TEXT,
+        order_value  REAL,
+        attempt      INTEGER,
+        consumed_at  TEXT
+    )
+""")
+conn.commit()
+
+consumer = KafkaConsumer(
+    'delivery-events',
+    bootstrap_servers='localhost:9092',
+    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+    auto_offset_reset='earliest',
+    group_id='delivery-analytics',
+)
+
+print("Consuming from 'delivery-events'... (Ctrl+C to stop)")
+
+count = 0
+try:
+    for message in consumer:
+        event = message.value
+        event['consumed_at'] = datetime.now().isoformat()
+        conn.execute("""
+            INSERT INTO delivery_events_stream
+            (delivery_id, city, address_type, window, status, timestamp, order_value, attempt, consumed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            event['delivery_id'], event['city'], event['address_type'],
+            event['window'], event['status'], event['timestamp'],
+            event['order_value'], event['attempt'], event['consumed_at']
+        ))
+        conn.commit()
+        count += 1
+        if count % 10 == 0:
+            cur = conn.execute("""
+                SELECT ROUND(AVG(CASE WHEN status='DELIVERED' THEN 1.0 ELSE 0.0 END)*100, 1),
+                       COUNT(*)
+                FROM delivery_events_stream
+                WHERE status IN ('DELIVERED','FAILED','RESCHEDULED')
+            """)
+            row = cur.fetchone()
+            if row[0]:
+                print(f"  Live FADR: {row[0]}%  |  Total terminal events: {row[1]}")
+except KeyboardInterrupt:
+    print(f"\nConsumed {count} messages. Stored in database.")
+    conn.close()
+    consumer.close()
+ENDOFFILE
+```
+
+```bash
+# Step 8 — open a second terminal (click + in the terminal panel)
+# In Terminal 1 run the producer:
+python src/kafka_producer.py
+```
+
+```bash
+# In Terminal 2 run the consumer:
+python src/kafka_consumer.py
+```
+
+- Watch events flow in Terminal 1 and FADR print in Terminal 2
+- Press Ctrl+C in both terminals to stop after ~30 seconds
+
+```bash
+# Step 9 — commit and push
+git add src/kafka_producer.py src/kafka_consumer.py
+git commit -m "Guide 08: Kafka producer and consumer for real-time delivery event streaming"
+git push -u origin feature/guide-08-kafka
+```
+
+Then go to GitHub, raise the PR, merge it, and you are done with Guide 08.
+
+---
+
 ## Why Kafka on your CV?
 
 - Apache Kafka is the world's most widely used real-time data streaming platform
