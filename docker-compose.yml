@@ -87,11 +87,12 @@ services:
       AIRFLOW__WEBSERVER__SECRET_KEY: delivery-opt-secret
       # → installs these Python packages inside the container on every startup
       # → needed because the base Airflow image does not include faker, pandas, numpy
-      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy"
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core dbt-sqlite"
     volumes:
-      - ./dags:/opt/airflow/dags  # your DAG files
-      - ./src:/opt/airflow/src    # your Python scripts
-      - ./data:/opt/airflow/data  # your data files
+      - ./dags:/opt/airflow/dags          # your DAG files
+      - ./src:/opt/airflow/src            # your Python scripts
+      - ./data:/opt/airflow/data          # your data files
+      - ./delivery_dbt:/opt/airflow/delivery_dbt  # dbt project folder
     command: webserver
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -109,11 +110,12 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       # → same packages needed here — the scheduler is the process that actually runs tasks
-      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy"
+      _PIP_ADDITIONAL_REQUIREMENTS: "faker pandas numpy dbt-core dbt-sqlite"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
+      - ./delivery_dbt:/opt/airflow/delivery_dbt  # dbt project folder
     command: scheduler
 
 # ── Shared network ────────────────────────────────────────────────────────
