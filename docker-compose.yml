@@ -21,8 +21,10 @@ services:
       - "9092:9092"                 # external port so your Python scripts can connect
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181              # where to find Zookeeper
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092   # hostname other containers use
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT://localhost:9092 — advertise localhost so Python scripts running in
+      # the Codespaces terminal (outside Docker) can connect via the mapped port
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1            # 1 broker = 1 replica is enough
 
   # ── Kafka Setup ───────────────────────────────────────────────────────────
