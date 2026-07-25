@@ -48,7 +48,7 @@ Terminal 1 shows:
 Run `docker-compose up` then open Airflow at `localhost:8080`. You will see:
 
 - Your DAG (Directed Acyclic Graph) `delivery_optimisation_pipeline` listed
-- Click it and see 5 tasks as boxes connected by arrows: `generate_raw_data → ingest_to_database → run_dbt_transformations → run_dbt_tests → export_mart_to_csv`
+- Click it and see 5 tasks as boxes connected by arrows: `generate_data_py → ingest_py → dbt_run_transformations → dbt_test_data_quality → export_mart_py`
 - Trigger it manually — watch each box turn green as it succeeds
 - Click any task to see its full log output
 
