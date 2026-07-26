@@ -76,16 +76,7 @@ git branch  # list all branches; * marks the one you are on
 
 ---
 
-## Step 6.1 — Create `src/predict.py`
-
-Create the file `src/predict.py`:
-
-**How to create this file:**
-```bash
-notepad src/predict.py  # open Notepad; click Yes to create the file
-```
-- Notepad will open (or ask to create the file — click Yes)
-- Paste the content below into it, then press **Ctrl+S** to save and close Notepad
+## Step 9.1 — Create `src/predict.py`
 
 **What `src/predict.py` does and why it exists:**
 - **What it does:** Loads the delivery data, trains a Random Forest model on it, evaluates accuracy, saves the trained model as a `.pkl` file, and demonstrates sample predictions
@@ -94,7 +85,10 @@ notepad src/predict.py  # open Notepad; click Yes to create the file
 - **Output:** `models/fadr_predictor.pkl` (trained RandomForest + label encoders) + `data/processed/model_evaluation.png` (confusion matrix and feature importance charts)
 - **Pipeline position:** `data/raw/deliveries.csv` (from `generate_data.py`) → **this script** → `models/fadr_predictor.pkl` (the saved model the dashboard loads for live predictions)
 
-```python
+Run this command in Codespaces to create the file:
+
+```bash
+cat > src/predict.py << 'ENDOFFILE'
 import pandas as pd                          # data manipulation library
 import numpy as np                           # numerical operations
 from sklearn.model_selection import train_test_split  # split data into train/test sets
@@ -386,11 +380,12 @@ print(f"Apartment + Evening window + Preferences set → Success probability: {p
 # multiply by 100 to convert to percentage points e.g. 0.258 × 100 = 25.8
 # :.1f formats to 1 decimal place  →  "25.8"
 print(f"\nImprovement from preferences + better window: +{(prob2-prob)*100:.1f} percentage points")
+ENDOFFILE
 ```
 
 ---
 
-## Step 6.2 — Run the model
+## Step 9.2 — Run the model
 
 ```bash
 python src/predict.py  # train the model and print evaluation results
@@ -422,7 +417,7 @@ Improvement from preferences + better window: +25.8 percentage points
 
 ---
 
-## Step 6.3 — Understand what you built
+## Step 9.3 — Understand what you built
 
 | Step | What happened | Why it matters |
 |---|---|---|
@@ -434,12 +429,15 @@ Improvement from preferences + better window: +25.8 percentage points
 
 ---
 
-## Step 6.4 — Commit
+## Step 9.4 — Install dependencies
 
 ```bash
-git add src/predict.py models/.gitkeep  # stage the script and a placeholder for the models/ folder
-git commit -m "Add ML model to predict delivery success (83% accuracy)"  # save snapshot
+pip install scikit-learn matplotlib seaborn
 ```
+**What this does:**
+- `scikit-learn` — the ML library: RandomForest, LabelEncoder, train_test_split, metrics
+- `matplotlib` — draws the charts
+- `seaborn` — nicer-looking charts built on top of matplotlib (used for the confusion matrix heatmap)
 
 ---
 
