@@ -355,7 +355,7 @@ streamlit run src/dashboard.py  # start web server; auto-opens browser at localh
 
 ```bash
 git add src/dashboard.py  # stage only this file, not any unrelated changes
-git commit -m "Add Streamlit FADR dashboard with business impact calculator"  # save snapshot
+git commit -m "Add Streamlit FADR dashboard with business impact calculator"
 ```
 
 ---
@@ -402,6 +402,8 @@ git diff  # show exact lines changed (+ added, - removed) before staging
 **What this shows:**
 - The exact lines you added (in green with `+`) and deleted (in red with `-`) in every modified file
 - This is your chance to review your own work before anyone else sees it
+
+**Important:** `git diff` only shows changes to files Git is already tracking. `src/dashboard.py` is a brand new file — Git has never seen it before, so `git diff` will show nothing. That is normal. For new files, review by opening the file itself.
 
 **What to check:**
 - Did I accidentally leave a `print("test123")` debugging line?
@@ -453,7 +455,7 @@ Press `q` to exit.
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 10: Streamlit dashboard with FADR analysis, heatmap, and business impact calculator"  # save permanent snapshot
+git commit -m "Add Streamlit FADR dashboard with business impact calculator"  # save permanent snapshot
 ```
 **What a commit is:**
 - A permanent snapshot saved in Git's history
@@ -483,8 +485,8 @@ git log --oneline  # show one-line summary of every commit; newest at top
 
 Example output:
 ```
-i5g2b3h Guide 10: Streamlit dashboard with FADR analysis, heatmap, and business impact calculator
-h4f1a2c Guide 09: add Random Forest model to predict delivery success
+i5g2b3h Add Streamlit FADR dashboard with business impact calculator
+h4f1a2c Guide 09: Random Forest model predicting delivery success at 83% accuracy
 9b2c3d1 Initial commit: project guides and README
 ```
 
