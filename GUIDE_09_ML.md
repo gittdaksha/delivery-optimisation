@@ -484,6 +484,8 @@ git diff  # show exact lines added (+) and deleted (-) in every modified file
 - The exact lines you added (in green with `+`) and deleted (in red with `-`) in every modified file
 - This is your chance to review your own work before anyone else sees it
 
+**Important:** `git diff` only shows changes to files Git is already tracking. `src/predict.py` is a brand new file — Git has never seen it before, so `git diff` will show nothing. That is normal. For new files, you review by opening the file itself. `git diff` is most useful when you are editing an existing file.
+
 **What to check:**
 - Did I accidentally leave a `print("test123")` debugging line?
 - Did I hardcode a password anywhere?
@@ -499,16 +501,8 @@ git diff  # show exact lines added (+) and deleted (-) in every modified file
 
 ### Step G5 — Stage your files
 
-**What `src/train_model.py` does and why it exists:**
-- **What it does:** A standalone script dedicated solely to training and persisting the ML model — it reads cleaned data, fits the classifier, and saves the `.pkl` output
-- **Why separate:** Keeping training isolated from prediction means you can schedule retraining on a cron/Airflow schedule independently; the prediction/serving code (`predict.py`) never needs to be changed just because you want to retrain on newer data
-- **Input:** `data/raw/deliveries.csv` (50,000 delivery records, features + labels)
-- **Output:** `models/fadr_predictor.pkl` (trained RandomForest model with label encoders, ~5MB binary file)
-- **Pipeline position:** `data/raw/deliveries.csv` → **this script** → `models/fadr_predictor.pkl` → `src/predict.py` (loads the saved model for inference)
-
 ```bash
-git add src/train_model.py  # stage this file (select it for the next commit)
-git add src/predict.py      # stage this file
+git add src/predict.py
 ```
 
 **What staging means:**
@@ -542,7 +536,7 @@ Press `q` to exit.
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 09: Random Forest model predicting delivery success at 83% accuracy, ROC-AUC 0.88"  # save staged changes permanently
+git commit -m "Guide 09: add Random Forest model to predict delivery success"  # save staged changes permanently
 ```
 **What a commit is:**
 - A permanent snapshot saved in Git's history
@@ -572,8 +566,8 @@ git log --oneline  # --oneline = one line per commit; newest at top
 
 Example output:
 ```
-h4f1a2c Guide 09: Random Forest model predicting delivery success at 83% accuracy, ROC-AUC 0.88
-g3d8e2f Guide 08: Docker Compose stack — Kafka, Postgres, Airflow fully containerised
+h4f1a2c Guide 09: add Random Forest model to predict delivery success
+g3d8e2f Guide 08: Kafka producer and consumer for real-time delivery event streaming
 9b2c3d1 Initial commit: project guides and README
 ```
 
