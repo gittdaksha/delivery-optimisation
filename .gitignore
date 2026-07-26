@@ -9,3 +9,6 @@ models/*.pkl
 .DS_Store
 airflow_home/
 *.egg-info/
+logs/
+.claude/
+4/
