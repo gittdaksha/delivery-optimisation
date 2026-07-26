@@ -1,6 +1,6 @@
-# Guide 13 — Push to GitHub & Write Your CV Entry
+# Guide 13 — Publish to GitHub & Write Your CV Entry
 
-**Goal:** Publish the project to GitHub so it can be shared, and write a strong CV entry that communicates real impact.
+**Goal:** Make the project look professional on GitHub and write a CV entry that communicates real impact.
 
 ---
 
@@ -8,18 +8,18 @@
 
 - Every guide begins the same way in a real office: make sure you are on the right branch and it is up to date before touching any files
 
-### Step G1 — Make sure you are on develop and it is current
+### Step G1 — Make sure you are on main and it is current
 
 ```bash
-git checkout develop  # switch to develop (must already exist)
+git checkout main  # switch to main (must already exist)
 ```
 **What this does:**
-- Switches you to the develop branch
-- You always create feature branches FROM develop, never from main and never from another feature branch
+- Switches you to the main branch
+- You always create feature branches FROM main
 - No `-b` here — this switches to an existing branch; you do not use `-b` when the branch already exists
 
 ```bash
-git pull origin develop  # download + merge latest from GitHub
+git pull origin main  # download + merge latest from GitHub
 ```
 **What this does:**
 - Downloads any changes from GitHub that you do not have locally
@@ -28,14 +28,14 @@ git pull origin develop  # download + merge latest from GitHub
 
 **What each part means:**
 - `origin` — download from GitHub (the remote)
-- `develop` — specifically from the develop branch on GitHub
+- `main` — specifically from the main branch on GitHub
 
 ```bash
 git status  # show current state; should be clean
 ```
 **What this does:**
 - Shows the current state
-- You should see `On branch develop, nothing to commit, working tree clean`
+- You should see `On branch main, nothing to commit, working tree clean`
 - If you see modified files here, deal with them before moving forward — do not carry unrelated changes into a new branch
 - No flags here — `git status` always shows full current state
 
@@ -50,7 +50,7 @@ git checkout -b feature/guide-13-github  # -b = create new branch and switch to 
 
 **Why a new branch for every guide:**
 - Each branch is one unit of work
-- If something breaks, you can delete the branch and start fresh without affecting develop or main
+- If something breaks, you can delete the branch and start fresh without affecting main
 - In an office, each feature or fix lives on its own branch for the same reason
 
 Confirm you are on the right branch:
@@ -62,73 +62,36 @@ git branch  # list all branches; * = current
 
 ---
 
-## Step 13.1 — Create a GitHub repository
+## Step 13.1 — Review the README
 
-1. Go to github.com and sign in
-2. Click **New repository**
-3. Name it: `delivery-optimisation`
-4. Set to **Public** (so interviewers can see it)
-5. Do NOT initialise with README (you already have one)
-6. Click **Create repository**
-
----
-
-## Step 13.2 — Connect your local project to GitHub
-
-Copy the commands GitHub shows you. They will look like:
+- The README already exists at the root of the project
+- It describes the problem, the full pipeline, and the reasoning behind each tool choice
+- Open it and read through it — this is what a recruiter or hiring manager sees when they open your GitHub repo
 
 ```bash
-# git remote add origin <url>
-# "remote" = a saved nickname pointing to a URL (your GitHub repo)
-# "add" = create a new remote entry
-# "origin" = the nickname (you could call it anything; "origin" is the universal convention)
-# the URL = where git push/pull will send/receive code
-git remote add origin https://github.com/YOUR_USERNAME/delivery-optimisation.git  # link local repo to GitHub URL
-# -M = force rename: renames current branch to "main"
-# capital M (not lowercase) = force rename even if a branch called "main" already exists
-git branch -M main  # -M = force rename current branch to main
-# -u = set upstream: permanently links local "main" to "origin/main" on GitHub
-# after this one-time setup, you can just type "git push" with no other arguments
-git push -u origin main  # upload all commits; -u links local main to GitHub main
+cat README.md  # print README to the terminal so you can read it
 ```
+**What this does:**
+- Prints the full README content to the terminal
+- Confirm it covers: the problem, the pipeline layers, the tools, and the project structure
 
-Replace `YOUR_USERNAME` with your GitHub username.
-
-**What each part of `git remote add origin` means:**
-- `add` — add a new remote connection
-- `origin` — the name you are giving this remote. Everyone uses `origin` by convention
-- `URL` — the GitHub repository address
-
-**What `git branch -M main` means:**
-- `-M` — force rename — renames the current branch to `main`. The capital M forces the rename even if a branch called `main` already exists
-
-**What each part of `git push -u origin main` means:**
-- `-u` — sets upstream link — permanently links your local `main` branch to `origin/main` on GitHub. After this one-time setup, you can just type `git push` with nothing else and Git knows where to send it
-- `origin` — the name of your GitHub remote (the nickname for your GitHub repo URL)
-- `main` — the name of the branch you are pushing
-
-**Why:**
-- GitHub is where the world can see your work
-- Recruiters look at GitHub profiles
-- A project that lives only on your laptop doesn't exist to anyone else
+**What makes a good README for a portfolio project:**
+- Describes a real problem (not "this project uses X, Y, Z")
+- Shows the architecture and why each tool was chosen
+- Explains what the data will show — quantified results
+- Has a clear project structure diagram
+- Does NOT need screenshots or badges to be professional — clear writing is enough
 
 ---
 
-## Step 13.3 — Verify
-
-Go to `https://github.com/YOUR_USERNAME/delivery-optimisation`. You should see all your files and guides.
-
----
-
-## Step 13.4 — Your CV Entry
+## Step 13.2 — Your CV Entry
 
 **How to use this section:**
 - The text below is a ready-to-paste CV entry
-- Copy the version that matches how far you got — the first version covers Guides 02-07, the second covers the full project
-- Replace `YOUR_USERNAME` with your actual GitHub username before submitting
+- Copy the version that matches how far you got — the first version covers Guides 02–10, the second covers the full project
 - Each bullet point describes one concrete thing you built, not a vague claim — this is what makes it credible to a technical recruiter or hiring manager
 
-Copy and adapt this for your resume:
+**Version 1 — Core pipeline (Guides 02–10):**
 
 ---
 
@@ -143,23 +106,23 @@ Copy and adapt this for your resume:
 - Quantified that delivery preferences + optimised windows improve success probability by 25+ percentage points for high-risk addresses
 - Built an interactive Streamlit dashboard with a business impact calculator showing ₹1.6Cr+ annual savings at 100K daily volume
 
-GitHub: `github.com/YOUR_USERNAME/delivery-optimisation`
+GitHub: `github.com/gittdaksha/delivery-optimisation`
 
 ---
 
-## Step 13.5 — LinkedIn post version
+## Step 13.3 — LinkedIn post version
 
 **Why post on LinkedIn:**
 - LinkedIn posts with project links get significantly more recruiter engagement than a CV alone
 - The post shows you can communicate technical work to a non-technical audience — a skill data engineers need daily
 - Keep the post concise: problem → what you built → one quantified result → link
 
-After completing the project, you can update your original LinkedIn post with:
+After completing the project, post this on LinkedIn:
 
 - "I turned this problem into a data engineering project — built the full pipeline from synthetic data generation → SQL analysis → dbt transformations → Airflow orchestration → ML prediction → Streamlit dashboard"
 - "The model confirms: apartments + morning windows fail ~35% more often"
 - "Preferences + alerts improve success probability by 25 percentage points"
-- "Full project on GitHub: [link]"
+- "Full project on GitHub: github.com/gittdaksha/delivery-optimisation"
 
 ---
 
@@ -174,20 +137,23 @@ After completing the project, you can update your original LinkedIn post with:
 | Big Data Processing | PySpark | DataFrame API, window functions, Parquet output |
 | Real-Time Streaming | Apache Kafka | Event streaming with producer/consumer |
 | Containerisation | Docker + Docker Compose | Full stack running with one command |
+| Cloud Data Warehouse | BigQuery (GCP) | Date-partitioned, city-clustered production table |
+| Cloud Streaming | Google Pub/Sub | Managed event streaming on GCP |
 | Machine Learning | scikit-learn | Predicts delivery success with 83% accuracy |
 | Visualisation | Streamlit | Interactive dashboard for stakeholders |
+| CI/CD | GitHub Actions | Runs tests + linting on every push |
 | Version Control | Git + GitHub | Full project history, shareable portfolio |
 
 ---
 
-## Updated CV Entry (Full Stack)
+## Step 13.4 — Full-stack CV Entry (all 13 guides)
 
 **Use this version if you completed all 13 guides.**
 - It lists every major tool
 - Interviewers at data-heavy companies (logistics, e-commerce, fintech) will recognise the full stack and know you can discuss each tool in depth
 
 **Delivery Optimisation — End-to-End Data Engineering Pipeline**
-`Python` `PySpark` `Apache Kafka` `Apache Airflow` `dbt` `Docker` `PostgreSQL` `SQLite` `scikit-learn` `Streamlit` `Git`
+`Python` `PySpark` `Apache Kafka` `Apache Airflow` `dbt` `Docker` `BigQuery` `SQLite` `scikit-learn` `Streamlit` `GitHub Actions` `Git`
 
 - Built a full data engineering pipeline to improve First Attempt Delivery Rate (FADR) across 50,000 delivery records
 - Processed data at scale with PySpark: window functions, feature engineering, Parquet output with partition pruning
@@ -195,10 +161,12 @@ After completing the project, you can update your original LinkedIn post with:
 - Orchestrated daily batch pipeline with Apache Airflow DAG (5 tasks, retry logic, PostgreSQL metadata backend)
 - Transformed raw data with dbt (3 SQL models, automated data quality tests, lineage documentation)
 - Containerised the entire stack (Kafka + Postgres + Airflow) with Docker Compose — starts with `docker-compose up`
+- Loaded 50,000 rows to BigQuery (GCP) with date-partitioned, city-clustered table; mirrored events to Pub/Sub
+- Automated CI/CD with GitHub Actions: 7 pytest unit tests + flake8 linting run on every push to main
 - Trained Random Forest classifier (83% accuracy, ROC-AUC 0.88) proving delivery preferences improve success by 25+ pp
 - Built Streamlit dashboard with business impact calculator showing ₹1.6Cr+ annual savings at 100K daily volume
 
-GitHub: `github.com/YOUR_USERNAME/delivery-optimisation`
+GitHub: `github.com/gittdaksha/delivery-optimisation`
 
 ---
 
@@ -217,10 +185,12 @@ GitHub: `github.com/YOUR_USERNAME/delivery-optimisation`
 - "The real-time side uses Apache Kafka — a producer publishes delivery status events to a topic with 3 partitions, and a consumer reads them and logs them to a database"
 - "For large-scale processing I used PySpark — DataFrames, window functions to rank delivery performance by city, and Parquet output with city partitioning"
 - "The entire stack — Kafka, PostgreSQL, and Airflow — runs with `docker-compose up`"
+- "I also loaded the same data to BigQuery on GCP, created a date-partitioned and city-clustered table for query performance, and mirrored real-time events to Google Pub/Sub"
+- "CI/CD is automated with GitHub Actions — 7 pytest unit tests and flake8 linting run on every push so broken code can never reach main silently"
 - "On top of that I trained a Random Forest model with 83% accuracy: apartments + morning windows fail 35% more often, and preferences + alerts improve success by 25 percentage points"
 - "A Streamlit dashboard shows the business impact — at 100K daily deliveries, improving FADR by just 1% saves ₹16 lakh per day"
 
-- This single answer covers: Kafka, Spark, Airflow, dbt, Docker, ML, SQL, dashboarding, and business impact — the full senior DE (Data Engineer) stack
+- This single answer covers: Kafka, Spark, Airflow, dbt, Docker, BigQuery, Pub/Sub, CI/CD, ML, SQL, dashboarding, and business impact — the full senior DE (Data Engineer) stack
 
 ---
 
@@ -231,6 +201,10 @@ GitHub: `github.com/YOUR_USERNAME/delivery-optimisation`
 - This is the full Git workflow you do at the end of every guide
 - In a real office this is called "raising a PR (Pull Request)"
 - You have now done this 13 times — it is automatic
+
+**PR title and message for this guide:**
+- Title: `Guide 13: project complete — README, CV entry, GitHub published`
+- Description: `Guide 13 adds the final CV entry, LinkedIn post template, and interview Q&A. Project is now fully published on GitHub with 13 closed PRs showing professional contribution history.`
 
 ---
 
@@ -276,7 +250,7 @@ Press `q` to exit the diff view.
 ### Step G5 — Stage your files
 
 ```bash
-git add README.md  # stage only the README file
+git add GUIDE_13_GITHUB.md  # stage the updated guide file
 ```
 
 **What staging means:**
@@ -310,7 +284,7 @@ Press `q` to exit.
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 13: final project complete — README updated, CV entry, GitHub published"  # save final snapshot
+git commit -m "Guide 13: project complete — README, CV entry, GitHub published"  # save final snapshot
 ```
 **What a commit is:**
 - A permanent snapshot saved in Git's history
@@ -318,7 +292,7 @@ git commit -m "Guide 13: final project complete — README updated, CV entry, Gi
 - You can always return to this exact state
 
 **What makes a good commit message:**
-- Good: `"Guide 13: final project complete — README updated, CV entry, GitHub published"`
+- Good: `"Guide 13: project complete — README, CV entry, GitHub published"`
 - Bad: `"done"`, `"update"`, `"changes"`
 - Rule: your future self reading this 3 months later should know exactly what changed without looking at the code
 
@@ -340,9 +314,9 @@ git log --oneline  # list all commits, newest first
 
 Example output:
 ```
-l8j5e6k Guide 13: final project complete — README updated, CV entry, GitHub published
-k7i4d5j Guide 12: GitHub Actions CI/CD with 7 pytest unit tests and flake8 linting
-9b2c3d1 Initial commit: project guides and README
+l8j5e6k Guide 13: project complete — README, CV entry, GitHub published
+96b2986 Add logs/, .claude/, 4/ to .gitignore
+9781c83 Merge pull request #10 from gittdaksha/feature/guide-12-cicd
 ```
 
 **In an office:**
@@ -374,14 +348,14 @@ After pushing, go to your GitHub repository in the browser. You will see a yello
 
 ### Step G10 — Raise a Pull Request on GitHub
 
-A Pull Request (PR) is a formal request to merge your branch into another branch. You are asking: "I finished this work, please review it and bring it into develop."
+A Pull Request (PR) is a formal request to merge your branch into another branch. You are asking: "I finished this work, please review it and bring it into main."
 
 1. Click **Compare & pull request** in the yellow banner
 2. Check the top settings:
-   - **base:** `develop` ← where the code will go
+   - **base:** `main` ← where the code will go
    - **compare:** `feature/guide-13-github` ← what you are merging in
-3. Title: `Guide 13: project complete`
-4. Description: 1-2 lines about what this guide added
+3. Title: `Guide 13: project complete — README, CV entry, GitHub published`
+4. Description: `Guide 13 adds the final CV entry, LinkedIn post template, and interview Q&A. Project is now fully published on GitHub with 13 closed PRs showing professional contribution history.`
 5. Click **Create pull request**
 6. Click **Merge pull request** → **Confirm merge**
 
@@ -390,8 +364,8 @@ A Pull Request (PR) is a formal request to merge your branch into another branch
 - They would read your diff, leave comments, and you would discuss
 - Here you review and merge yourself — but the process is identical
 
-**Why not push directly to develop?**
-- In real teams, direct pushes to develop and main are blocked
+**Why not push directly to main?**
+- In real teams, direct pushes to main are blocked
 - Every change must go through a PR
 - This ensures someone always reviews code before it merges
 - You are building that exact habit
@@ -401,26 +375,26 @@ A Pull Request (PR) is a formal request to merge your branch into another branch
 ### Step G11 — Pull the merged changes back locally
 
 ```bash
-git checkout develop  # switch back to develop
+git checkout main  # switch back to main
 ```
-- Switches you back to develop
-- No `-b` here — `develop` already exists, you are just switching to it
+- Switches you back to main
+- No `-b` here — `main` already exists, you are just switching to it
 
 ```bash
-git pull origin develop  # download merged PR
+git pull origin main  # download merged PR
 ```
-- Downloads the merged PR from GitHub into your local develop
-- Your local develop now has everything from the feature branch you just merged
+- Downloads the merged PR from GitHub into your local main
+- Your local main now has everything from the feature branch you just merged
 
 **What each part means:**
 - `origin` — download from GitHub (the remote)
-- `develop` — specifically from the develop branch on GitHub
+- `main` — specifically from the main branch on GitHub
 - `pull` — download + merge in one step (it runs `git fetch` then `git merge` automatically)
 
 ```bash
 git log --oneline  # verify Guide 13 commit appears
 ```
-- You should now see your Guide 13 commit in develop's history
+- You should now see your Guide 13 commit in main's history
 - Confirm it is there
 
 **What `--oneline` means:** Show one line per commit instead of the full multi-line format.
@@ -455,35 +429,11 @@ git push origin --delete feature/guide-13-github  # delete branch on GitHub too
 
 ---
 
-### Final step — promote the complete project to main
-
-```bash
-# git checkout main: switches to the main branch
-# no -b flag here because main already exists — -b would error on an existing branch
-git checkout main  # switch to main branch (no -b, already exists)
-# git merge develop: takes all commits on develop that are NOT yet on main
-# and applies them to main in one step — main now has all 13 guides
-git merge develop  # bring all develop commits into main
-# git push origin main: uploads the updated main branch to GitHub
-# origin = the GitHub remote nickname  |  main = the branch being pushed
-git push origin main  # upload final complete project to GitHub
-```
-
-**What each command does:**
-- `git checkout main` — switches to the main branch; no `-b` because `main` already exists
-- `git merge develop` — takes all the commits from develop and applies them to main; after this, main has everything develop has
-- `git push origin main` — uploads main to GitHub; `origin` = the GitHub remote, `main` = the branch being pushed
-
-- Your `main` branch is now the published, complete project
-- Every guide, every script, every test — version controlled, with a clean PR history showing each guide as a separate piece of work
-
----
-
 ### What your GitHub looks like after this
 
 - **Pull Requests tab** → 13 closed PRs, one per guide — a professional contribution history
 - **main branch → commits** → the complete project from Guide 01 through Guide 13
-- **Branches** → only `main` and `develop` remain — everything else was cleaned up
+- **Branches** → only `main` remains — all feature branches were cleaned up
 
 - This is exactly what a professional Git history looks like
 - You built a full data engineering portfolio with proper version control habits from day one
