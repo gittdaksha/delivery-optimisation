@@ -2,6 +2,8 @@
 
 **Goal:** Write SQL queries to answer real business questions about delivery performance. SQL is the most important skill for a data engineer — every pipeline, every transformation, every metric starts here.
 
+**Why this guide exists:** The data is stored in a database. SQL is how you read, filter, group, and analyse it. This guide answers real business questions — which cities have the worst FADR, which time windows fail most — using the 50,000 rows created in Guide 02. The same SQL logic appears again in dbt (Guide 04) and Spark SQL (Guide 05).
+
 ---
 
 ## Why SQL?

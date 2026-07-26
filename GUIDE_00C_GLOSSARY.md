@@ -1,5 +1,7 @@
 # Guide 00C — Full Forms and Glossary
 
+**Why this guide exists:** The guides use many abbreviations (FADR, dbt, DAG, CSV, ML, CI/CD). Instead of explaining each one every time it appears, they are all collected here. When you see a term you do not recognise, check this file first.
+
 - Every abbreviation, acronym, and technical term used across all guides — with its full form and a one-line plain-English meaning.
 
 - Bookmark this file.

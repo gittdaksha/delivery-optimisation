@@ -2,6 +2,8 @@
 
 **Goal:** Get Python and all required libraries installed and ready. This is the foundation. Nothing else works without this.
 
+**Why this guide exists:** Every guide that follows runs Python code. Without the correct Python version, virtual environment, and libraries installed, every script will fail. This guide is a one-time setup — you do it once and never need to repeat it.
+
 ---
 
 ## What is a terminal and how do you open it?

@@ -71,7 +71,7 @@ git branch  # list all branches; * marks your current branch
 
 ---
 
-## Step 7.1 — Create `src/dashboard.py`
+## Step 10.1 — Create `src/dashboard.py`
 
 Create the file `src/dashboard.py`:
 
@@ -320,7 +320,7 @@ st.caption("Built by Daksha Kurhade | Delivery Optimisation Data Engineering Pro
 
 ---
 
-## Step 7.2 — Run the dashboard
+## Step 10.2 — Run the dashboard
 
 ```bash
 streamlit run src/dashboard.py  # start web server; auto-opens browser at localhost:8501
@@ -332,7 +332,7 @@ streamlit run src/dashboard.py  # start web server; auto-opens browser at localh
 
 ---
 
-## Step 7.3 — What the dashboard shows
+## Step 10.3 — What the dashboard shows
 
 | Section | What it answers |
 |---|---|
@@ -346,14 +346,14 @@ streamlit run src/dashboard.py  # start web server; auto-opens browser at localh
 
 ---
 
-## Step 7.4 — Screenshot for your CV/portfolio
+## Step 10.4 — Screenshot for your CV/portfolio
 
 - Once the dashboard runs, take a screenshot of it
 - This is a visual proof point you can add to your portfolio, resume, or LinkedIn
 
 ---
 
-## Step 7.5 — Commit
+## Step 10.5 — Commit
 
 ```bash
 git add src/dashboard.py  # stage only this file, not any unrelated changes
