@@ -1,4 +1,4 @@
-# Guide 08 — Push to GitHub & Write Your CV Entry
+# Guide 13 — Push to GitHub & Write Your CV Entry
 
 **Goal:** Publish the project to GitHub so it can be shared, and write a strong CV entry that communicates real impact.
 
@@ -62,7 +62,7 @@ git branch  # list all branches; * = current
 
 ---
 
-## Step 8.1 — Create a GitHub repository
+## Step 13.1 — Create a GitHub repository
 
 1. Go to github.com and sign in
 2. Click **New repository**
@@ -73,7 +73,7 @@ git branch  # list all branches; * = current
 
 ---
 
-## Step 8.2 — Connect your local project to GitHub
+## Step 13.2 — Connect your local project to GitHub
 
 Copy the commands GitHub shows you. They will look like:
 
@@ -114,13 +114,13 @@ Replace `YOUR_USERNAME` with your GitHub username.
 
 ---
 
-## Step 8.3 — Verify
+## Step 13.3 — Verify
 
 Go to `https://github.com/YOUR_USERNAME/delivery-optimisation`. You should see all your files and guides.
 
 ---
 
-## Step 8.4 — Your CV Entry
+## Step 13.4 — Your CV Entry
 
 **How to use this section:**
 - The text below is a ready-to-paste CV entry
@@ -147,7 +147,7 @@ GitHub: `github.com/YOUR_USERNAME/delivery-optimisation`
 
 ---
 
-## Step 8.5 — LinkedIn post version
+## Step 13.5 — LinkedIn post version
 
 **Why post on LinkedIn:**
 - LinkedIn posts with project links get significantly more recruiter engagement than a CV alone

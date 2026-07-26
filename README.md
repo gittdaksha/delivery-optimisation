@@ -43,11 +43,11 @@ Raw Data
    ↓
 [05] PySpark         — process that same data at scale, the production way
    ↓
-[06] Airflow         — once the pipeline works, automate and schedule it
+[06] Docker          — package all services so they run anywhere with one command
    ↓
-[07] Kafka           — real-time events are a separate concern, separate tool
+[07] Airflow         — once the pipeline works, automate and schedule it
    ↓
-[08] Docker          — once all pieces work, package them so they run anywhere
+[08] Kafka           — real-time events are a separate concern, separate tool
    ↓
 [09] ML Model        — with clean reliable data, build the predictive layer
    ↓
@@ -77,9 +77,9 @@ Raw Data
 | 03 | SQL | SQL is the primary language of data. Understand the data here before touching any pipeline tool |
 | 04 | dbt | The standard way to manage SQL transformations in teams — version controlled, tested, documented. Sits on top of SQL, not instead of it. The structure you build is Kimball's staging → facts → marts pattern |
 | 05 | PySpark | When data is too large for one machine, Spark distributes it. Same DataFrame logic, cluster scale. Window functions and Parquet are tested in nearly every DE interview |
-| 06 | Airflow | The batch pipeline needs to run on a schedule with retries and monitoring. That is specifically Airflow's job — not a general scripting task |
-| 07 | Kafka | Batch pipelines run hourly or daily. But delivery status changes happen right now — partner marks parcel delivered in the field. That continuous stream needs a different system. Kafka is that system |
-| 08 | Docker | Multiple services now need to start together consistently. Docker Compose does that with one command, identically on every machine |
+| 06 | Docker | Multiple services (Airflow, Kafka, Postgres) need to start together consistently. Docker Compose does that with one command, identically on every machine |
+| 07 | Airflow | The batch pipeline needs to run on a schedule with retries and monitoring. That is specifically Airflow's job — not a general scripting task |
+| 08 | Kafka | Batch pipelines run hourly or daily. But delivery status changes happen right now — partner marks parcel delivered in the field. That continuous stream needs a different system. Kafka is that system |
 | 09 | scikit-learn | With a clean, reliable data pipeline behind it, ML has something worth predicting on. The model answers: can we know before the delivery whether it will succeed? |
 | 10 | Streamlit | The model output and SQL results sitting in files are invisible to anyone who does not write code. Streamlit turns them into a usable web app |
 | 11 | BigQuery, GCS, Pub/Sub | BigQuery: same SQL and dbt models, now on GCP. GCS: the real ELT landing zone — CSV lands in Cloud Storage first, BigQuery loads from there. BigQuery optimisation: partitioning by date + clustering by city. Pub/Sub: the GCP-managed version of the Kafka producer/consumer you built in Guide 07 — same concept, no infrastructure to manage |
@@ -116,9 +116,9 @@ Delivery Optimisation/
 ├── GUIDE_03_SQL.md
 ├── GUIDE_04_DBT.md
 ├── GUIDE_05_PYSPARK.md
-├── GUIDE_06_AIRFLOW.md
-├── GUIDE_07_KAFKA.md
-├── GUIDE_08_DOCKER.md
+├── GUIDE_06_DOCKER.md
+├── GUIDE_07_AIRFLOW.md
+├── GUIDE_08_KAFKA.md
 ├── GUIDE_09_ML.md
 ├── GUIDE_10_DASHBOARD.md
 ├── GUIDE_11_BIGQUERY.md

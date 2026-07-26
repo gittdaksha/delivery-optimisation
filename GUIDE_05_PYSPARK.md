@@ -1,4 +1,4 @@
-# Guide 09 — Large-Scale Processing with PySpark
+# Guide 05 — Large-Scale Processing with PySpark
 
 **Goal:** Re-process the delivery data using Apache Spark instead of Pandas. Spark is the industry standard for processing data at scale — it runs on clusters of hundreds of machines and handles datasets of billions of rows.
 
@@ -26,6 +26,29 @@
 ## Git — Before You Start This Guide
 
 Every guide begins the same way in a real office: you make sure you are on the right branch and it is up to date before touching any files.
+
+### One-time cleanup — Commit guide numbering fixes
+
+During Guide 04 the heading numbers in 6 guide files were corrected. Those changes are sitting uncommitted on develop. Run these now to clean them up before starting:
+
+```bash
+git add GUIDE_05_PYSPARK.md GUIDE_06_AIRFLOW.md GUIDE_08_DOCKER.md GUIDE_09_ML.md GUIDE_10_DASHBOARD.md GUIDE_13_GITHUB.md
+```
+- Stages the 6 guide files that had their heading numbers fixed
+
+```bash
+git commit -m "Fix guide numbering in headings to match file names"
+```
+- Commits the heading fixes as a clean snapshot on develop
+
+```bash
+git push origin develop
+```
+- Pushes the commit to GitHub so develop on GitHub matches your local develop
+
+After this, run `git status` — you should see `nothing to commit, working tree clean` before proceeding to G1.
+
+---
 
 ### Step G1 — Make sure you are on develop and it is current
 
@@ -697,7 +720,7 @@ Deletes the branch on GitHub too.
 ### Step G13 — Create the next guide's branch
 
 ```bash
-git checkout -b feature/guide-06-airflow  # -b = create new branch and switch to it
+git checkout -b feature/guide-06-docker  # -b = create new branch and switch to it
 ```
 
 **What `-b` means:**

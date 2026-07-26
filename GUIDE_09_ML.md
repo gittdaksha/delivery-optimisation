@@ -1,4 +1,4 @@
-# Guide 06 — Predict Delivery Success with ML (Machine Learning)
+# Guide 09 — Predict Delivery Success with ML (Machine Learning)
 
 **Goal:** Train a machine learning model that predicts whether a delivery attempt will succeed, given address type, time window, order value, and customer preferences. This is the "data science" layer on top of your data engineering pipeline.
 
@@ -76,7 +76,7 @@ git branch  # list all branches; * marks the one you are on
 
 ---
 
-## Step 6.1 — Create `src/predict.py`
+## Step 9.1 — Create `src/predict.py`
 
 Create the file `src/predict.py`:
 
@@ -390,7 +390,7 @@ print(f"\nImprovement from preferences + better window: +{(prob2-prob)*100:.1f} 
 
 ---
 
-## Step 6.2 — Run the model
+## Step 9.2 — Run the model
 
 ```bash
 python src/predict.py  # train the model and print evaluation results
@@ -422,7 +422,7 @@ Improvement from preferences + better window: +25.8 percentage points
 
 ---
 
-## Step 6.3 — Understand what you built
+## Step 9.3 — Understand what you built
 
 | Step | What happened | Why it matters |
 |---|---|---|
@@ -434,7 +434,7 @@ Improvement from preferences + better window: +25.8 percentage points
 
 ---
 
-## Step 6.4 — Commit
+## Step 9.4 — Commit
 
 ```bash
 git add src/predict.py models/.gitkeep  # stage the script and a placeholder for the models/ folder
@@ -501,16 +501,8 @@ git diff  # show exact lines added (+) and deleted (-) in every modified file
 
 ### Step G5 — Stage your files
 
-**What `src/train_model.py` does and why it exists:**
-- **What it does:** A standalone script dedicated solely to training and persisting the ML model — it reads cleaned data, fits the classifier, and saves the `.pkl` output
-- **Why separate:** Keeping training isolated from prediction means you can schedule retraining on a cron/Airflow schedule independently; the prediction/serving code (`predict.py`) never needs to be changed just because you want to retrain on newer data
-- **Input:** `data/raw/deliveries.csv` (50,000 delivery records, features + labels)
-- **Output:** `models/fadr_predictor.pkl` (trained RandomForest model with label encoders, ~5MB binary file)
-- **Pipeline position:** `data/raw/deliveries.csv` → **this script** → `models/fadr_predictor.pkl` → `src/predict.py` (loads the saved model for inference)
-
 ```bash
-git add src/train_model.py  # stage this file (select it for the next commit)
-git add src/predict.py      # stage this file
+git add src/predict.py      # stage this file (select it for the next commit)
 ```
 
 **What staging means:**

@@ -2,6 +2,8 @@
 
 **Goal:** Create realistic synthetic delivery data using Python, then store it in a database using SQL (Structured Query Language). This is the "ingestion" layer of the pipeline.
 
+**Why this guide exists:** Every guide after this one needs data to work with. This guide creates 50,000 realistic delivery records and stores them in a SQLite database. Without this step there is no data for SQL queries, no data for dbt models, no data for the ML model, and nothing for the dashboard to show.
+
 ---
 
 ## Why synthetic data?

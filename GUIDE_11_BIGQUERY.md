@@ -1,6 +1,8 @@
-# Guide 12 — Move from SQLite to BigQuery (GCP)
+# Guide 11 — Move from SQLite to BigQuery (GCP)
 
 **Goal:** Run the same pipeline — the same SQL (Structured Query Language), the same dbt (Data Build Tool) models — against Google BigQuery instead of SQLite. This is not a new pipeline. It is the same pipeline on production infrastructure.
+
+**Why this guide exists:** SQLite is a local file on your laptop — no company uses it in production. BigQuery is Google's cloud data warehouse used by thousands of companies. This guide proves you can take what you built locally and run it on real cloud infrastructure — the most important step for getting a job.
 
 ---
 

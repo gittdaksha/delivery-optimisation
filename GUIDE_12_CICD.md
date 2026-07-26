@@ -1,6 +1,8 @@
-# Guide 13 — CI/CD (Continuous Integration/Continuous Deployment) with GitHub Actions
+# Guide 12 — CI/CD (Continuous Integration/Continuous Deployment) with GitHub Actions
 
 **Goal:** Set up a CI/CD pipeline that runs automatically on every `git push`. It runs your Python unit tests, dbt (Data Build Tool) data quality tests, and linting. If any check fails, the push is flagged before broken code reaches the main branch.
+
+**Why this guide exists:** Right now you run tests manually — or forget to run them. CI/CD means every time you push code to GitHub, tests run automatically. If something breaks, GitHub blocks the merge and tells you exactly what failed. This is standard practice in every professional engineering team.
 
 ---
 

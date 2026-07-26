@@ -1,0 +1,11 @@
+delivery_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: sqlite
+      threads: 1
+      database: delivery_db
+      schema: main
+      schemas_and_paths:
+        main: /opt/airflow/data/delivery_db.sqlite
+      schema_directory: /opt/airflow/data
