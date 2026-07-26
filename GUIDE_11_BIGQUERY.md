@@ -118,22 +118,34 @@ In the GCP console:
 
 ## Step 11.3 — Install the GCP SDK (Software Development Kit) and Python client
 
+**Step 1 — Install Python libraries:**
 ```bash
-pip install google-cloud-bigquery==3.23.0 google-cloud-storage==2.16.0 db-dtypes==1.2.0  # install GCP Python libraries
+pip install google-cloud-bigquery==3.23.0 google-cloud-storage==2.16.0 db-dtypes==1.2.0
 ```
 
-Also install the GCP CLI (Command Line Interface) (gcloud):
-- Download from https://cloud.google.com/sdk/docs/install
-- Run the installer, then:
+**Step 2 — Install the GCP CLI (`gcloud`) in Codespaces:**
+```bash
+curl https://sdk.cloud.google.com | bash -s -- --disable-prompts
+source /root/.bashrc
+```
+**What this does:**
+- Downloads and installs the `gcloud` CLI into Codespaces
+- `source /root/.bashrc` reloads the shell so `gcloud` is available immediately
+- On your local Windows machine, download the installer from `https://cloud.google.com/sdk/docs/install` instead
+
+**Step 3 — Log in and set your project:**
+```bash
+gcloud init
+```
+- Choose your Google account
+- Select your `delivery-optimisation` project
 
 ```bash
-gcloud init  # set up gcloud: choose account, project, and default region
-gcloud auth application-default login  # save login credentials so Python SDK can use them
+gcloud auth application-default login
 ```
-
 **What `application-default login` does:**
 - Opens a browser window where you log in with your Google account
-- Saves credentials to a file on your laptop (`~/.config/gcloud/`)
+- Saves credentials to a file (`~/.config/gcloud/`)
 - Any GCP SDK call — from Python, dbt, or the CLI — automatically reads these credentials to prove you are authorised
 - You are not embedding passwords into code; the credential file handles it transparently
 
@@ -165,12 +177,6 @@ Replace `YOUR_PROJECT_ID` with your actual project ID.
 
 ## Step 11.5 — Create `src/load_to_bigquery.py`
 
-**How to create this file:**
-```bash
-notepad src/load_to_bigquery.py  # open/create file in Windows Notepad
-```
-Notepad will open (or ask to create the file — click Yes). Paste the content below into it, then press **Ctrl+S** to save and close Notepad.
-
 **What `src/load_to_bigquery.py` does and why it exists:**
 - **What it does:** Reads the local CSV file and uploads it to a BigQuery table in your GCP project, replacing any previously loaded data on each run
 - **Why separate:** Cloud ingestion is a distinct concern from local data generation or SQLite loading — the credentials, SDK calls, and error handling are all GCP-specific; keeping it separate means the rest of the pipeline continues to work locally even when cloud access is unavailable
@@ -178,7 +184,10 @@ Notepad will open (or ask to create the file — click Yes). Paste the content b
 - **Output:** BigQuery table `project.delivery_raw.deliveries` (50,000 rows loaded into GCP, queryable with SQL)
 - **Pipeline position:** `data/raw/deliveries.csv` (from `generate_data.py`) → **this script** → `delivery_raw.deliveries` table in BigQuery → dbt `--target bigquery` for cloud transformations
 
-```python
+Run this command in Codespaces to create the file:
+
+```bash
+cat > src/load_to_bigquery.py << 'ENDOFFILE'
 from google.cloud import bigquery  # GCP BigQuery Python client library
 import pandas as pd  # needed to read the CSV into a DataFrame first
 import os  # read environment variables (like GCP_PROJECT_ID)
@@ -227,6 +236,7 @@ def load_csv_to_bigquery():  # function that does the actual load
 
 if __name__ == "__main__":  # only run when called directly, not when imported
     load_csv_to_bigquery()  # execute the load function
+ENDOFFILE
 ```
 
 ---
@@ -429,12 +439,6 @@ pip install google-cloud-pubsub==2.21.0  # Pub/Sub Python client library
 
 Create `src/pubsub_producer.py`:
 
-**How to create this file:**
-```bash
-notepad src/pubsub_producer.py  # open/create file in Windows Notepad
-```
-Notepad will open (or ask to create the file — click Yes). Paste the content below into it, then press **Ctrl+S** to save and close Notepad.
-
 **What `src/pubsub_producer.py` does and why it exists:**
 - **What it does:** Publishes simulated delivery status events as JSON messages to a Google Cloud Pub/Sub topic in real time
 - **Why separate:** The producer only *publishes* events — it has no knowledge of who reads them or what they do with them; this decoupling is the whole point of a message queue, and it mirrors the same producer/consumer separation you built with Kafka in Guide 07
@@ -442,7 +446,10 @@ Notepad will open (or ask to create the file — click Yes). Paste the content b
 - **Output:** 20 JSON messages published to the `delivery-events` Google Pub/Sub topic
 - **Pipeline position:** Live delivery events (simulated in a loop) → **this script** → `delivery-events` Pub/Sub topic → `src/pubsub_consumer.py` reads and processes them
 
-```python
+Run this command in Codespaces to create the file:
+
+```bash
+cat > src/pubsub_producer.py << 'ENDOFFILE'
 from google.cloud import pubsub_v1  # Pub/Sub client library
 import json  # convert Python dict to JSON string
 import os  # read environment variables
@@ -491,15 +498,10 @@ for i in range(20):  # publish 20 test events
     print(f"  Published message id: {future.result()}")  # .result() waits and returns message ID
 
 print("Done publishing.")
+ENDOFFILE
 ```
 
 Create `src/pubsub_consumer.py`:
-
-**How to create this file:**
-```bash
-notepad src/pubsub_consumer.py  # open/create file in Windows Notepad
-```
-Notepad will open (or ask to create the file — click Yes). Paste the content below into it, then press **Ctrl+S** to save and close Notepad.
 
 **What `src/pubsub_consumer.py` does and why it exists:**
 - **What it does:** Subscribes to the Pub/Sub topic, receives each delivery event message, decodes it, processes it, and acknowledges it so Pub/Sub knows not to re-deliver it
@@ -508,7 +510,10 @@ Notepad will open (or ask to create the file — click Yes). Paste the content b
 - **Output:** Decoded delivery events printed to terminal; in production, each event would be inserted as a row into a BigQuery table in real time
 - **Pipeline position:** `delivery-events` Pub/Sub topic (fed by `src/pubsub_producer.py`) → **this script** → processed event output (printed, or written to BigQuery in a production version)
 
-```python
+Run this command in Codespaces to create the file:
+
+```bash
+cat > src/pubsub_consumer.py << 'ENDOFFILE'
 from google.cloud import pubsub_v1  # Pub/Sub client library
 import json  # parse JSON bytes back to a Python dict
 import os  # read environment variables
@@ -555,6 +560,7 @@ except Exception:
     # .cancel() tells the background thread to stop pulling messages and clean up
     streaming_pull_future.cancel()  # cleanly stop the streaming pull
     print("Done.")
+ENDOFFILE
 ```
 
 Run producer then consumer in two terminals:
@@ -607,11 +613,16 @@ Edit `~/.dbt/profiles.yml` — add a BigQuery target:
 - The `~` symbol means your home directory — on Windows this is `C:/Users/YourName/`
 - So `~/.dbt/profiles.yml` means `C:/Users/YourName/.dbt/profiles.yml`
 
-**How to open this file:**
+Add the BigQuery target to `~/.dbt/profiles.yml`. Open it with:
 ```bash
-notepad "$HOME/.dbt/profiles.yml"  # $HOME = C:\Users\YourName in Git Bash
+cat ~/.dbt/profiles.yml  # view current contents first
 ```
-Notepad will open the file. Paste the additional content below into it (keeping what is already there), then press **Ctrl+S** to save and close Notepad.
+Then append the bigquery section using:
+```bash
+cat >> ~/.dbt/profiles.yml << 'ENDOFFILE'
+ENDOFFILE
+```
+Or edit directly — add the following under the existing `outputs:` block:
 
 ```yaml
 delivery_dbt:  # project name — must match name in dbt_project.yml
