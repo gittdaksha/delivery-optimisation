@@ -75,12 +75,6 @@ git branch  # list all branches; * marks your current branch
 
 Create the file `src/dashboard.py`:
 
-**How to create this file:**
-```bash
-notepad src/dashboard.py  # open/create file in Windows Notepad
-```
-Notepad will open (or ask to create the file — click Yes). Paste the content below into it, then press **Ctrl+S** to save and close Notepad.
-
 **What `src/dashboard.py` does and why it exists:**
 - **What it does:** A Streamlit web app that reads the SQLite database and the saved ML model, then renders live FADR metrics, charts, a business impact calculator, and city-level heatmaps in a browser
 - **Why separate:** The dashboard is a presentation layer — it consumes the outputs that the pipeline already produced; merging it into any earlier script would couple UI code with data-processing logic, making both harder to maintain
@@ -88,7 +82,10 @@ Notepad will open (or ask to create the file — click Yes). Paste the content b
 - **Output:** Streamlit web app at `localhost:8501` (interactive browser dashboard with charts, KPIs, and business impact calculator)
 - **Pipeline position:** `data/delivery_db.sqlite` (from `ingest.py`) + `models/fadr_predictor.pkl` (from `predict.py`) → **this script** → interactive web dashboard at `localhost:8501`
 
-```python
+Run this command in Codespaces to create the file:
+
+```bash
+cat > src/dashboard.py << 'ENDOFFILE'
 import streamlit as st  # web app framework, turns script into a web page
 import pandas as pd  # data tables (DataFrames)
 import sqlite3  # built-in Python library for reading SQLite databases
@@ -316,6 +313,7 @@ ax6.set_title(f"{city}: FADR Heatmap by Address Type × Delivery Window")  # cha
 st.pyplot(fig6)  # render heatmap
 
 st.caption("Built by Daksha Kurhade | Delivery Optimisation Data Engineering Project")  # small footer text
+ENDOFFILE
 ```
 
 ---
@@ -486,7 +484,7 @@ git log --oneline  # show one-line summary of every commit; newest at top
 Example output:
 ```
 i5g2b3h Guide 10: Streamlit dashboard with FADR analysis, heatmap, and business impact calculator
-h4f1a2c Guide 09: Random Forest model predicting delivery success at 83% accuracy
+h4f1a2c Guide 09: add Random Forest model to predict delivery success
 9b2c3d1 Initial commit: project guides and README
 ```
 
