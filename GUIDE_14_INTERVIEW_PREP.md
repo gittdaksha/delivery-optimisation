@@ -1,5 +1,7 @@
 # Guide 14 — Interview Preparation
 
+**Why this guide exists:** Building the project is only half the work. An interviewer will ask you to explain what you built, why you made certain choices, and what you learned. This guide gives you the exact answers — written the way you should say them in an interview, not the way a textbook would write them.
+
 - This guide collects every question an interviewer is likely to ask about this project — by tool, by concept, and about you personally
 - Each answer is written the way you should actually say it, not the way a textbook would write it
 
@@ -134,6 +136,18 @@
 - "When you write Parquet data with partitionBy('city'), Spark creates separate folders per city: city=Mumbai/, city=Delhi/, etc."
 - "When you later query with WHERE city = 'Mumbai', Spark skips all other folders entirely — it only opens the Mumbai folder"
 - "At large scale this can reduce data read from 500GB to 5GB for a city-specific query"
+
+**"You already calculated FADR in SQL — why did you calculate the same thing again in PySpark?"**
+- "The repeated calculations are a verification step — I first ran the same metrics in Spark to confirm the environment was working correctly and Spark was reading the data right; if FADR% matched Guide 03, I knew there were no setup issues"
+- "Once verified, I used Spark to do what SQL never did — create new feature columns like is_high_risk and order_value_bucket, and write the enriched dataset to partitioned Parquet"
+- "The SQL calculations in Spark were the warm-up; the Parquet output with new columns was the actual deliverable — that file is what the ML model and dashboard read downstream"
+- "In short: SQL answered questions and printed them to screen; Spark verified those answers, then transformed and stored the data for everything that comes after it"
+
+**"What is the difference between what SQL did and what Spark did in this project?"**
+- "SQL only read and printed — the results appeared on screen and nothing was saved; no new data was created"
+- "Spark transformed the data — it added two new columns that did not exist before (is_high_risk, order_value_bucket) and wrote the enriched dataset to disk as Parquet"
+- "SQL was the end of the analysis; Spark was the middle of the pipeline — its output feeds Guide 09 (ML model), Guide 10 (dashboard), and Guide 11 (BigQuery)"
+- "The window function ranking address types within each city was also new — Guide 03 never did that"
 
 ---
 
