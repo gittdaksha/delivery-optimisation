@@ -484,6 +484,8 @@ git diff  # show exact lines added (+) and deleted (-) in every modified file
 - The exact lines you added (in green with `+`) and deleted (in red with `-`) in every modified file
 - This is your chance to review your own work before anyone else sees it
 
+**Important:** `git diff` only shows changes to files Git is already tracking. `src/predict.py` is a brand new file — Git has never seen it before, so `git diff` will show nothing. That is normal. For new files, you review by opening the file itself. `git diff` is most useful when you are editing an existing file.
+
 **What to check:**
 - Did I accidentally leave a `print("test123")` debugging line?
 - Did I hardcode a password anywhere?
