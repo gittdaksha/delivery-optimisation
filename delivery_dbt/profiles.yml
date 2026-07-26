@@ -9,3 +9,10 @@ delivery_dbt:
       schemas_and_paths:
         main: /opt/airflow/data/delivery_db.sqlite
       schema_directory: /opt/airflow/data
+    bigquery:
+      type: bigquery
+      method: oauth
+      project: dark-berm-503613-k9
+      dataset: delivery_marts
+      location: asia-south1
+      threads: 4
