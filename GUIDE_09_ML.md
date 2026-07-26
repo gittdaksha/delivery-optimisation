@@ -536,7 +536,7 @@ Press `q` to exit.
 ### Step G7 — Commit
 
 ```bash
-git commit -m "Guide 09: Random Forest model predicting delivery success at 74% accuracy, ROC-AUC 0.69"  # save staged changes permanently
+git commit -m "Guide 09: add Random Forest model to predict delivery success"  # save staged changes permanently
 ```
 **What a commit is:**
 - A permanent snapshot saved in Git's history
@@ -566,7 +566,7 @@ git log --oneline  # --oneline = one line per commit; newest at top
 
 Example output:
 ```
-h4f1a2c Guide 09: Random Forest model predicting delivery success at 74% accuracy, ROC-AUC 0.69
+h4f1a2c Guide 09: add Random Forest model to predict delivery success
 g3d8e2f Guide 08: Kafka producer and consumer for real-time delivery event streaming
 9b2c3d1 Initial commit: project guides and README
 ```
