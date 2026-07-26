@@ -93,8 +93,33 @@ git branch
 
 ---
 
-## Step 8.1 — Verify Kafka is running in Codespaces
+## Step 8.1 — Start Kafka in Codespaces
 
+**Why not `docker compose up -d` for everything:**
+- Codespaces free tier gives you ~4 GB RAM
+- Kafka's JVM needs 512 MB, Airflow needs ~1.5 GB, Postgres needs ~200 MB
+- Running all 7 services together causes Kafka to get killed by the OS (Out Of Memory)
+- For Guide 08 you only need Kafka — stop Airflow first, then start Kafka
+
+**Step 1 — Stop the Airflow containers (free up RAM):**
+```bash
+docker compose stop airflow-webserver airflow-scheduler airflow-init
+```
+**What this does:**
+- Stops the Airflow containers without removing them
+- Frees ~1.5 GB of RAM so Kafka has enough memory to stay running
+- You can start them again later with `docker compose start airflow-webserver airflow-scheduler`
+
+**Step 2 — Start Kafka services only:**
+```bash
+docker compose up -d zookeeper kafka kafka-setup
+```
+**What this does:**
+- `docker compose up -d` — start containers in the background
+- `zookeeper kafka kafka-setup` — only start these three, not Airflow or Postgres
+- Wait about 30 seconds for Kafka to fully start, then continue
+
+**Step 3 — Verify all three are running:**
 ```bash
 docker ps
 ```
@@ -102,20 +127,8 @@ docker ps
 - `zookeeper` — Up
 - `kafka` — Up, port 9092 mapped
 - `kafka-setup` — Exited (0) — correct, it ran once to create the topic then stopped
-- `postgres` — Up (healthy)
-- `airflow-webserver` — Up
-- `airflow-scheduler` — Up
 
-If Kafka is not in the list, start all containers:
-```bash
-docker compose up -d
-```
-**What this does:**
-- Reads `docker-compose.yml` and starts all 7 services
-- `-d` = detached mode — containers run in the background, terminal is returned to you
-- Wait 2 minutes then run `docker ps` again
-
-Verify the topic was created:
+**Step 4 — Verify the topic was created:**
 ```bash
 docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
@@ -124,7 +137,12 @@ docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 - `kafka-topics --list` — list all topics on this Kafka broker
 - `--bootstrap-server localhost:9092` — the address of the Kafka broker
 - You should see `delivery-events` in the output
-- If nothing appears, check with `docker logs kafka-setup` to see if the topic creation failed
+
+**If `kafka` is not in `docker ps`:**
+```bash
+docker logs kafka
+```
+- Look for `Connection refused` at the bottom — means Zookeeper was still starting when Kafka tried to connect — wait 30 more seconds and run `docker compose up -d kafka` again
 
 ---
 

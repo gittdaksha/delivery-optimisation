@@ -26,6 +26,8 @@ services:
       # the Codespaces terminal (outside Docker) can connect via the mapped port
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1            # 1 broker = 1 replica is enough
+      # limit JVM heap so Kafka does not get OOM-killed in Codespaces free tier (4GB total)
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"
 
   # ── Kafka Setup ───────────────────────────────────────────────────────────
   # → one-shot container that creates the Kafka topic then exits
