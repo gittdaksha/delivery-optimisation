@@ -137,4 +137,4 @@ Every push to `main` triggers automated checks via GitHub Actions:
 ## Author
 
 **Daksha Kurhade** — Data Analyst, Air India | IIT Delhi  
-[GitHub](https://github.com/gittdaksha) · [LinkedIn](https://linkedin.com/in/dakshakurhade)
+[GitHub](https://github.com/gittdaksha) · [LinkedIn](https://www.linkedin.com/in/daksha-kurhade/)
